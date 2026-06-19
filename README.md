@@ -1,13 +1,14 @@
 # Coletor de lixo geracional em C11
 
-Projeto acadêmico de um coletor de lixo conservador para Linux x86-64. A
+Projeto acadêmico de um coletor de lixo conservador para Windows 11 x86-64. A
 implementação será desenvolvida incrementalmente, começando por mark-sweep e
-evoluindo para duas gerações com barreira de escrita baseada em `mprotect()`.
+evoluindo para duas gerações com barreira de escrita baseada em proteção de
+páginas da memória virtual.
 
 ## Objetivos principais
 
 - disponibilizar uma API de alocação baseada em `gc_malloc()`;
-- obter o heap gerenciado por meio de `mmap()`;
+- obter o heap gerenciado por meio das APIs de memória virtual do Windows;
 - localizar ponteiros interiores em `O(log n)` com uma árvore AVL de
   intervalos;
 - identificar raízes explícitas, da pilha e dos registradores;
@@ -17,12 +18,13 @@ evoluindo para duas gerações com barreira de escrita baseada em `mprotect()`.
 
 ## Plataforma e restrições
 
-- Linux x86-64;
+- Windows 11 x86-64;
 - processo com uma única thread;
 - C11;
-- GCC com `-std=c11 -Wall -Wextra -Werror -pedantic`;
+- GCC do MSYS2/MinGW-w64 com
+  `-std=c11 -Wall -Wextra -Werror -pedantic`;
 - zero warnings;
-- APIs POSIX/Linux documentadas quando necessárias.
+- dependências da API Win32 documentadas quando necessárias.
 
 ## Estrutura
 
@@ -35,15 +37,33 @@ evoluindo para duas gerações com barreira de escrita baseada em `mprotect()`.
 - `data/`: dados experimentais;
 - `plots/`: gráficos gerados.
 
+## Build inicial
+
+Em Windows 11 x86-64, com GCC e GNU Make do MSYS2/MinGW-w64:
+
+```powershell
+mingw32-make clean
+mingw32-make all
+mingw32-make test
+mingw32-make stress
+```
+
+O build utiliza as flags obrigatórias
+`-std=c11 -Wall -Wextra -Werror -pedantic`. Os artefatos são gravados em
+`build/` e removidos por `mingw32-make clean`.
+
+O Commit 2 foi validado no ambiente Windows. A validação em Linux não foi
+realizada porque não há distribuição WSL instalada e deixou de ser obrigatória
+após a mudança da plataforma de desenvolvimento.
+
 ## Estado atual
 
-O repositório está na Fase 0, Commit 1, definida em `PLAN.md`. Neste momento há
-somente a fundação documental e a estrutura de diretórios; ainda não existe
-implementação do coletor nem sistema de build.
+O repositório está na Fase 0, Commit 2, definida em `PLAN.md`. Há um sistema de
+build inicial e um teste mínimo da cadeia de compilação, mas ainda não existe
+implementação do coletor.
 
-O próximo passo é o Commit 2: criar o `Makefile`, habilitar as flags estritas e
-adicionar um executável de teste mínimo com os alvos `all`, `test`, `stress` e
-`clean`.
+O próximo passo é o Commit 3: criar macros de asserção, separar os testes por
+módulo e adicionar o alvo `sanitize`.
 
 ## Documentação do desenvolvimento
 
