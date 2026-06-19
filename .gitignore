@@ -1,0 +1,27 @@
+# Artefatos de compilação
+build/
+bin/
+*.o
+*.a
+*.so
+*.d
+
+# Cobertura, depuração e análise dinâmica
+*.gcda
+*.gcno
+*.gcov
+core
+core.*
+vgcore.*
+
+# Arquivos temporários e de editores
+*.log
+*.tmp
+*~
+.DS_Store
+.idea/
+.vscode/
+
+# Instruções locais de desenvolvimento
+PLAN.md
+SKILL.md
