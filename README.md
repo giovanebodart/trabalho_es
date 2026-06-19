@@ -56,14 +56,30 @@ O Commit 2 foi validado no ambiente Windows. A validação em Linux não foi
 realizada porque não há distribuição WSL instalada e deixou de ser obrigatória
 após a mudança da plataforma de desenvolvimento.
 
+Os testes ficam separados por módulo em `tests/test_*.c` e usam as macros de
+`tests/test.h`. Uma asserção malsucedida retorna `EXIT_FAILURE`, permitindo que
+o GNU Make interrompa a suíte com código diferente de zero.
+
+O alvo de sanitização usa Clang/LLVM com AddressSanitizer e
+UndefinedBehaviorSanitizer:
+
+```powershell
+mingw32-make sanitize
+```
+
+Esse alvo requer os pacotes `mingw-w64-clang-x86_64-clang` e
+`mingw-w64-clang-x86_64-compiler-rt` do ambiente `clang64` do MSYS2. Por
+padrão, o `Makefile` procura essa cadeia em `C:/msys64/clang64`; outro caminho
+pode ser informado com `SAN_ROOT`.
+
 ## Estado atual
 
-O repositório está na Fase 0, Commit 2, definida em `PLAN.md`. Há um sistema de
-build inicial e um teste mínimo da cadeia de compilação, mas ainda não existe
-implementação do coletor.
+O repositório está na Fase 0, Commit 3, definida em `PLAN.md`. Há um sistema de
+build, testes separados por módulo e configuração de sanitizadores, mas ainda
+não existe implementação do coletor.
 
-O próximo passo é o Commit 3: criar macros de asserção, separar os testes por
-módulo e adicionar o alvo `sanitize`.
+O próximo passo é o Commit 4: definir o nó da árvore de intervalos e suas
+operações auxiliares básicas.
 
 ## Documentação do desenvolvimento
 

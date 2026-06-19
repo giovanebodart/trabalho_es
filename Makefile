@@ -1,27 +1,47 @@
 CC := gcc
 CFLAGS := -std=c11 -Wall -Wextra -Werror -pedantic
+SAN_ROOT ?= C:/msys64/clang64
+SAN_CC := $(SAN_ROOT)/bin/clang.exe
+SAN_RUNTIME_DIR := $(SAN_ROOT)/bin
+SAN_FLAGS := $(CFLAGS) -g -O1 -fno-omit-frame-pointer \
+	-fsanitize=address,undefined
 
 BUILD_DIR := build
+SANITIZE_DIR := $(BUILD_DIR)/sanitize
 EXEEXT := .exe
 MKDIR_BUILD = if not exist "$(BUILD_DIR)" mkdir "$(BUILD_DIR)"
+MKDIR_SANITIZE = if not exist "$(SANITIZE_DIR)" mkdir "$(SANITIZE_DIR)"
 CLEAN_BUILD = if exist "$(BUILD_DIR)" rmdir /S /Q "$(BUILD_DIR)"
 
-TEST_BIN := $(BUILD_DIR)/test_smoke$(EXEEXT)
+TEST_NAMES := test_assertions test_smoke
+TEST_BINS := $(addprefix $(BUILD_DIR)/,$(addsuffix $(EXEEXT),$(TEST_NAMES)))
+SANITIZE_BINS := $(addprefix $(SANITIZE_DIR)/,$(addsuffix $(EXEEXT),$(TEST_NAMES)))
 
-.PHONY: all test stress clean
+.PHONY: all test stress sanitize clean
 
-all: $(TEST_BIN)
+all: $(TEST_BINS)
 
 $(BUILD_DIR):
 	$(MKDIR_BUILD)
 
-$(TEST_BIN): tests/test_smoke.c | $(BUILD_DIR)
-	$(CC) $(CFLAGS) $< -o $@
+$(SANITIZE_DIR): | $(BUILD_DIR)
+	$(MKDIR_SANITIZE)
 
-test: $(TEST_BIN)
-	$(TEST_BIN)
+$(BUILD_DIR)/%$(EXEEXT): tests/%.c tests/test.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -Itests $< -o $@
+
+$(SANITIZE_DIR)/%$(EXEEXT): tests/%.c tests/test.h | $(SANITIZE_DIR)
+	$(SAN_CC) $(SAN_FLAGS) -Itests $< -o $@
+
+test: $(TEST_BINS)
+	$(BUILD_DIR)/test_assertions$(EXEEXT)
+	$(BUILD_DIR)/test_smoke$(EXEEXT)
 
 stress: test
+
+sanitize: $(SANITIZE_BINS)
+	set "PATH=$(SAN_RUNTIME_DIR);%PATH%" && $(subst /,\,$(SANITIZE_DIR)/test_assertions$(EXEEXT))
+	set "PATH=$(SAN_RUNTIME_DIR);%PATH%" && $(subst /,\,$(SANITIZE_DIR)/test_smoke$(EXEEXT))
 
 clean:
 	$(CLEAN_BUILD)

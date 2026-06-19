@@ -41,3 +41,16 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: nenhum código atual depende de APIs Linux; `stdio.h`, `stdlib.h`, `puts()` e `EXIT_SUCCESS` são recursos C11 compatíveis; referências futuras foram ajustadas para `VirtualAlloc`, `VirtualFree`, `VirtualProtect`, tratamento vetorizado de exceções e `QueryPerformanceCounter`.
 - Erros da IA ou sugestões rejeitadas: a orientação anterior tratava Linux como plataforma principal; ela foi substituída pela decisão explícita de desenvolver para Windows.
 - Pendências e próximo passo: no Commit 3, criar a infraestrutura de testes para Windows; nos marcos de memória virtual, validar cuidadosamente granularidade de páginas, flags de proteção, códigos de erro e semântica do tratador de exceção.
+
+## 2026-06-19 20:06 — Infraestrutura de testes e sanitizadores
+
+- Prompt/objetivo: prosseguir para o Commit 3 da Fase 0.
+- Fase do PLAN.md: Fase 0 — Fundação e rastreabilidade; Commit 3.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, `Makefile`, `tests/test_smoke.c`, estado e histórico Git, compiladores e pacotes MSYS2 disponíveis.
+- Alterações realizadas: criação de `tests/test.h` com macros de asserção, criação de `tests/test_assertions.c`, adaptação do teste smoke, separação dos executáveis de teste por módulo e adição do alvo `sanitize` com ASan e UBSan.
+- Decisões e justificativas: o build normal permanece em GCC/MinGW; a sanitização usa a cadeia `clang64` completa do MSYS2 porque o GCC/MinGW instalado não fornece `libasan` nem `libubsan`; cada expressão das asserções de igualdade é avaliada uma única vez.
+- Riscos ou erros procurados: dupla avaliação em macros, falhas retornando código zero, mistura incompatível entre linkers `mingw64` e `clang64`, ausência das DLLs de runtime, caminhos com barras incompatíveis com `cmd.exe` e artefatos não removidos.
+- Testes executados: prova isolada de suporte a GCC/MinGW, instalação e inspeção dos pacotes MSYS2, `mingw32-make clean`, `mingw32-make all`, `mingw32-make test`, `mingw32-make sanitize`, `mingw32-make stress` e limpeza final.
+- Resultados: testes normais passaram sem warnings; testes ASan/UBSan compilaram e executaram com Clang 21.1.8; o autoteste confirmou que uma asserção malsucedida retorna `EXIT_FAILURE`, diferente de zero; `build/` foi removido ao final.
+- Erros da IA ou sugestões rejeitadas: a tentativa inicial de usar o pacote Clang do ambiente `mingw64` foi incorreta porque ele não inclui runtimes de sanitização compatíveis; a mistura manual de runtimes `clang64` com o linker `mingw64` também foi rejeitada após erros de ligação; a solução foi usar integralmente a cadeia `clang64` no alvo auxiliar.
+- Pendências e próximo passo: revisar o diff, criar o Commit 3 após autorização explícita e iniciar o Commit 4 com a definição do nó da árvore de intervalos.
