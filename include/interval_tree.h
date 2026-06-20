@@ -23,6 +23,12 @@ bool interval_node_init(IntervalNode *node, uintptr_t start, uintptr_t end);
 
 int interval_node_height(const IntervalNode *node);
 uintptr_t interval_node_max_end(const IntervalNode *node);
+int interval_node_balance_factor(const IntervalNode *node);
 void interval_node_update(IntervalNode *node);
+
+IntervalNode *interval_node_rotate_left(IntervalNode *root);
+IntervalNode *interval_node_rotate_right(IntervalNode *root);
+IntervalNode *interval_node_rotate_left_right(IntervalNode *root);
+IntervalNode *interval_node_rotate_right_left(IntervalNode *root);
 
 #endif

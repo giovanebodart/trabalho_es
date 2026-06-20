@@ -37,6 +37,16 @@ uintptr_t interval_node_max_end(const IntervalNode *node)
     return node == NULL ? (uintptr_t)0 : node->max_end;
 }
 
+int interval_node_balance_factor(const IntervalNode *node)
+{
+    if (node == NULL) {
+        return 0;
+    }
+
+    return interval_node_height(node->left)
+           - interval_node_height(node->right);
+}
+
 void interval_node_update(IntervalNode *node)
 {
     uintptr_t child_max_end;
@@ -51,4 +61,58 @@ void interval_node_update(IntervalNode *node)
     child_max_end = max_address(interval_node_max_end(node->left),
                                 interval_node_max_end(node->right));
     node->max_end = max_address(node->end, child_max_end);
+}
+
+IntervalNode *interval_node_rotate_left(IntervalNode *root)
+{
+    IntervalNode *pivot;
+
+    if (root == NULL || root->right == NULL) {
+        return root;
+    }
+
+    pivot = root->right;
+    root->right = pivot->left;
+    pivot->left = root;
+
+    interval_node_update(root);
+    interval_node_update(pivot);
+    return pivot;
+}
+
+IntervalNode *interval_node_rotate_right(IntervalNode *root)
+{
+    IntervalNode *pivot;
+
+    if (root == NULL || root->left == NULL) {
+        return root;
+    }
+
+    pivot = root->left;
+    root->left = pivot->right;
+    pivot->right = root;
+
+    interval_node_update(root);
+    interval_node_update(pivot);
+    return pivot;
+}
+
+IntervalNode *interval_node_rotate_left_right(IntervalNode *root)
+{
+    if (root == NULL || root->left == NULL || root->left->right == NULL) {
+        return root;
+    }
+
+    root->left = interval_node_rotate_left(root->left);
+    return interval_node_rotate_right(root);
+}
+
+IntervalNode *interval_node_rotate_right_left(IntervalNode *root)
+{
+    if (root == NULL || root->right == NULL || root->right->left == NULL) {
+        return root;
+    }
+
+    root->right = interval_node_rotate_right(root->right);
+    return interval_node_rotate_left(root);
 }

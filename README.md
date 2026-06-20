@@ -74,11 +74,12 @@ pode ser informado com `SAN_ROOT`.
 
 ## Estado atual
 
-O repositório está na Fase 1, Commit 4, definida em `PLAN.md`. O nó da árvore
-de intervalos usa limites `uintptr_t`, intervalos semiabertos e metadados de
-altura e maior endereço final da subárvore.
+O repositório está na Fase 1, Commit 5, definida em `PLAN.md`. A árvore de
+intervalos possui rotações AVL simples e duplas que preservam ordenação,
+altura e `max_end`.
 
-O próximo passo é o Commit 5: implementar e testar as rotações AVL.
+O próximo passo é o Commit 6: implementar inserção com rejeição de
+sobreposições e rebalanceamento.
 
 ## Documentação do desenvolvimento
 

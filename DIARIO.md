@@ -67,3 +67,29 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: compilação sem warnings; testes normais e ASan/UBSan passaram; foram cobertos nós unitários, intervalos inválidos, limites zero e `UINTPTR_MAX`, sentinelas nulas e propagação de altura e `max_end`.
 - Erros da IA ou sugestões rejeitadas: nenhum identificado.
 - Pendências e próximo passo: revisar o diff, criar o Commit 4 após autorização explícita e então implementar as rotações AVL do Commit 5.
+
+## 2026-06-20 16:13 — Dependência das rotações AVL
+
+- Prompt/objetivo: prosseguir diretamente para o Commit 6 da Fase 1.
+- Fase do PLAN.md: Fase 1 — Árvore de intervalos; avaliação do Commit 6.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, cabeçalho, implementação e testes da árvore de intervalos, estado e histórico Git.
+- Alterações realizadas: nenhuma alteração de código; somente análise da dependência entre os marcos.
+- Decisões e justificativas: o Commit 6 não foi iniciado porque exige rebalanceamento após inserções, mas as rotações simples e duplas necessárias pertencem ao Commit 5 e ainda não existiam.
+- Riscos ou erros procurados: inserção que degrade para árvore linear, alturas incorretas, `max_end` desatualizado, rebalanceamento incompleto e histórico fora da ordem incremental.
+- Testes executados: inspeção do código e do histórico; nenhum teste de build foi necessário porque não houve alteração de código.
+- Resultados: dependência técnica confirmada; a solicitação foi corrigida pelo usuário para retomar o Commit 5.
+- Erros da IA ou sugestões rejeitadas: foi rejeitada a implementação de inserção sem rotações ou a combinação dos Commits 5 e 6 em uma única mudança.
+- Pendências e próximo passo: implementar e validar as rotações AVL do Commit 5.
+
+## 2026-06-20 16:17 — Rotações AVL
+
+- Prompt/objetivo: corrigir a sequência solicitada e realizar o Commit 5 da Fase 1.
+- Fase do PLAN.md: Fase 1 — Árvore de intervalos; Commit 5.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, cabeçalho, implementação e testes da árvore de intervalos, estado e histórico Git.
+- Alterações realizadas: adição do fator de balanceamento, rotações simples à esquerda e à direita, rotações duplas esquerda-direita e direita-esquerda, testes e atualização do estado no README.
+- Decisões e justificativas: as rotações retornam a nova raiz da subárvore e não modificam a estrutura quando faltam os filhos exigidos; nas rotações simples, a variável `pivot` identifica explicitamente o filho que será promovido, mantém acessível a subárvore que precisa ser transferida e torna a troca de ponteiros e a nova raiz menos sujeitas a confusão; o nó rebaixado é atualizado antes do `pivot` promovido para preservar altura e `max_end` de baixo para cima.
+- Riscos ou erros procurados: perda da subárvore de transferência, inversão da ordenação, atualização de metadados na ordem errada, fator de balanceamento incorreto, acesso nulo e alteração parcial quando a rotação não é aplicável.
+- Testes executados: `mingw32-make clean`, `mingw32-make all`, `mingw32-make test`, `mingw32-make sanitize`, `mingw32-make stress`, teste específico de `test_interval_tree` e `git diff --check`.
+- Resultados: compilação sem warnings; testes normais e ASan/UBSan passaram; rotações simples e duplas preservaram ordenação sem sobreposição, subárvores de transferência, alturas, fatores de balanceamento e `max_end`.
+- Erros da IA ou sugestões rejeitadas: os primeiros dados dos testes de transferência continham intervalos sobrepostos; a revisão detectou e corrigiu os limites antes da entrega; o pedido anterior de pular o Commit 5 permaneceu registrado como rejeitado por dependência técnica.
+- Pendências e próximo passo: revisar o diff, criar o Commit 5 após autorização explícita e então implementar a inserção AVL do Commit 6.
