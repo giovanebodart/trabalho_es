@@ -396,6 +396,119 @@ static int test_insert_preconditions(void)
     return EXIT_SUCCESS;
 }
 
+static int test_find_boundaries_and_interior(void)
+{
+    IntervalNode nodes[4];
+    IntervalNode *root = NULL;
+    IntervalNode *found;
+
+    TEST_ASSERT(interval_node_init(&nodes[0], (uintptr_t)100,
+                                   (uintptr_t)110));
+    TEST_ASSERT(interval_node_init(&nodes[1], (uintptr_t)200,
+                                   (uintptr_t)210));
+    TEST_ASSERT(interval_node_init(&nodes[2], (uintptr_t)300,
+                                   (uintptr_t)310));
+    TEST_ASSERT(interval_node_init(&nodes[3], UINTPTR_MAX - (uintptr_t)1,
+                                   UINTPTR_MAX));
+    TEST_ASSERT(interval_tree_insert(&root, &nodes[0]));
+    TEST_ASSERT(interval_tree_insert(&root, &nodes[1]));
+    TEST_ASSERT(interval_tree_insert(&root, &nodes[2]));
+    TEST_ASSERT(interval_tree_insert(&root, &nodes[3]));
+
+    found = interval_tree_find(root, (uintptr_t)200);
+    TEST_ASSERT(found == &nodes[1]);
+    found = interval_tree_find(root, (uintptr_t)205);
+    TEST_ASSERT(found == &nodes[1]);
+    found = interval_tree_find(root, (uintptr_t)209);
+    TEST_ASSERT(found == &nodes[1]);
+    TEST_ASSERT(interval_tree_find(root, (uintptr_t)210) == NULL);
+    TEST_ASSERT(interval_tree_find(root, (uintptr_t)99) == NULL);
+    TEST_ASSERT(interval_tree_find(root, (uintptr_t)150) == NULL);
+    TEST_ASSERT(interval_tree_find(root, (uintptr_t)311) == NULL);
+    TEST_ASSERT(interval_tree_find(root, UINTPTR_MAX - (uintptr_t)1)
+                == &nodes[3]);
+    TEST_ASSERT(interval_tree_find(root, UINTPTR_MAX) == NULL);
+    TEST_ASSERT(interval_tree_find(NULL, (uintptr_t)200) == NULL);
+    return EXIT_SUCCESS;
+}
+
+static int test_find_comparison_counts(void)
+{
+    IntervalNode nodes[31];
+    IntervalNode *root = NULL;
+    IntervalNode *found;
+    size_t comparisons;
+    size_t index;
+
+    for (index = 0; index < 31; ++index) {
+        const uintptr_t start = (uintptr_t)(index * 10 + 10);
+
+        TEST_ASSERT(interval_node_init(&nodes[index], start,
+                                       start + (uintptr_t)5));
+        TEST_ASSERT(interval_tree_insert(&root, &nodes[index]));
+    }
+
+    comparisons = 0;
+    found = interval_tree_find_counted(root, root->start, &comparisons);
+    TEST_ASSERT(found == root);
+    TEST_ASSERT(comparisons == (size_t)1);
+
+    for (index = 0; index < 31; ++index) {
+        comparisons = 0;
+        found = interval_tree_find_counted(root, nodes[index].start,
+                                           &comparisons);
+        TEST_ASSERT(found == &nodes[index]);
+        TEST_ASSERT(comparisons >= (size_t)1);
+        TEST_ASSERT(comparisons <= (size_t)root->height);
+    }
+
+    comparisons = 0;
+    TEST_ASSERT(interval_tree_find_counted(root, (uintptr_t)0,
+                                           &comparisons) == NULL);
+    TEST_ASSERT(comparisons <= (size_t)root->height);
+    comparisons = 0;
+    TEST_ASSERT(interval_tree_find_counted(root, (uintptr_t)999,
+                                           &comparisons) == NULL);
+    TEST_ASSERT(comparisons <= (size_t)root->height);
+    return EXIT_SUCCESS;
+}
+
+static int test_find_prunes_left_subtree(void)
+{
+    IntervalNode root;
+    IntervalNode left;
+    IntervalNode left_left;
+    IntervalNode left_right;
+    IntervalNode right;
+    size_t comparisons = 99;
+
+    TEST_ASSERT(interval_node_init(&root, (uintptr_t)400, (uintptr_t)410));
+    TEST_ASSERT(interval_node_init(&left, (uintptr_t)200, (uintptr_t)210));
+    TEST_ASSERT(interval_node_init(&left_left,
+                                   (uintptr_t)100,
+                                   (uintptr_t)110));
+    TEST_ASSERT(interval_node_init(&left_right,
+                                   (uintptr_t)300,
+                                   (uintptr_t)310));
+    TEST_ASSERT(interval_node_init(&right, (uintptr_t)500, (uintptr_t)510));
+    left.left = &left_left;
+    left.right = &left_right;
+    interval_node_update(&left);
+    root.left = &left;
+    root.right = &right;
+    interval_node_update(&root);
+
+    TEST_ASSERT(interval_tree_find_counted(&root, (uintptr_t)350,
+                                           &comparisons) == NULL);
+    TEST_ASSERT(comparisons == (size_t)1);
+
+    comparisons = 99;
+    TEST_ASSERT(interval_tree_find_counted(NULL, (uintptr_t)350,
+                                           &comparisons) == NULL);
+    TEST_ASSERT(comparisons == (size_t)0);
+    return EXIT_SUCCESS;
+}
+
 int main(void)
 {
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_rejects_invalid_intervals());
@@ -411,6 +524,10 @@ int main(void)
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS,
                        test_rejects_overlaps_without_changes());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_insert_preconditions());
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS,
+                       test_find_boundaries_and_interior());
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_find_comparison_counts());
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_find_prunes_left_subtree());
     puts("test_interval_tree: ok");
     return EXIT_SUCCESS;
 }

@@ -106,3 +106,16 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: compilação sem warnings; testes normais e ASan/UBSan passaram; um verificador interno de teste recalculou ordenação sem sobreposição, altura, fator AVL e `max_end` após cada sequência; adjacência foi aceita e sobreposições parciais, contidas, abrangentes e duplicadas foram rejeitadas sem mudança estrutural.
 - Erros da IA ou sugestões rejeitadas: nenhum identificado.
 - Pendências e próximo passo: revisar o diff, criar o Commit 6 após autorização explícita e então implementar a busca pontual do Commit 7.
+
+## 2026-06-20 16:46 — Busca por ponteiro interior
+
+- Prompt/objetivo: prosseguir para o Commit 7 da Fase 1.
+- Fase do PLAN.md: Fase 1 — Árvore de intervalos; Commit 7.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, cabeçalho, implementação e testes da árvore de intervalos, estado e histórico Git.
+- Alterações realizadas: adição da busca pontual iterativa, variante instrumentada com contagem de nós examinados, testes de limites, ponteiros interiores, endereços externos e poda por `max_end`.
+- Decisões e justificativas: a API comum não expõe instrumentação; a variante `interval_tree_find_counted()` atende testes e benchmarks; como `max_end` é exclusivo, a subárvore esquerda só pode conter o endereço quando `address < left->max_end`; quando o endereço está antes da raiz e a esquerda é podada, a busca termina porque todos os nós da direita começam depois da raiz; a busca é iterativa para manter uso constante de pilha.
+- Riscos ou erros procurados: tratar `end` como inclusivo, perder o último byte válido, falhar em `UINTPTR_MAX`, percorrer subárvore podada, contagem incorreta em árvore vazia e complexidade maior que a altura da AVL.
+- Testes executados: `mingw32-make clean`, `mingw32-make all`, `mingw32-make test`, `mingw32-make sanitize`, `mingw32-make stress`, teste específico de `test_interval_tree` e `git diff --check`.
+- Resultados: compilação sem warnings; testes normais e ASan/UBSan passaram; início, interior e último byte retornaram o nó correto; limite final e lacunas retornaram `NULL`; em uma árvore controlada de 31 nós, todas as buscas examinaram no máximo a altura da árvore; a poda de uma subárvore esquerda foi confirmada com uma única visita.
+- Erros da IA ou sugestões rejeitadas: o primeiro fixture criado para demonstrar a poda tinha fator AVL igual a dois; a revisão adicionou a subárvore direita necessária e manteve a demonstração em uma árvore balanceada.
+- Pendências e próximo passo: revisar o diff, criar o Commit 7 após autorização explícita e então implementar a remoção AVL do Commit 8.

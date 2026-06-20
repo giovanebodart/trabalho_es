@@ -74,12 +74,11 @@ pode ser informado com `SAN_ROOT`.
 
 ## Estado atual
 
-O repositório está na Fase 1, Commit 6, definida em `PLAN.md`. A árvore de
-intervalos aceita inserções de nós fornecidos pelo chamador, rejeita
-sobreposições e se rebalanceia preservando altura e `max_end`.
+O repositório está na Fase 1, Commit 7, definida em `PLAN.md`. A árvore localiza
+o intervalo que contém um endereço, incluindo ponteiros interiores, com poda
+por `max_end` e busca iterativa.
 
-O próximo passo é o Commit 7: implementar busca por qualquer endereço dentro
-de um intervalo.
+O próximo passo é o Commit 8: implementar remoção AVL.
 
 ## Documentação do desenvolvimento
 

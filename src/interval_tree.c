@@ -179,3 +179,40 @@ bool interval_tree_insert(IntervalNode **root, IntervalNode *node)
     *root = interval_tree_insert_node(*root, node, &inserted);
     return inserted;
 }
+
+IntervalNode *interval_tree_find_counted(IntervalNode *root,
+                                         uintptr_t address,
+                                         size_t *comparisons)
+{
+    size_t examined = 0;
+
+    while (root != NULL) {
+        ++examined;
+
+        if (address >= root->start && address < root->end) {
+            if (comparisons != NULL) {
+                *comparisons = examined;
+            }
+            return root;
+        }
+
+        if (address < root->start) {
+            if (root->left == NULL || address >= root->left->max_end) {
+                break;
+            }
+            root = root->left;
+        } else {
+            root = root->right;
+        }
+    }
+
+    if (comparisons != NULL) {
+        *comparisons = examined;
+    }
+    return NULL;
+}
+
+IntervalNode *interval_tree_find(IntervalNode *root, uintptr_t address)
+{
+    return interval_tree_find_counted(root, address, NULL);
+}
