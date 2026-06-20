@@ -13,7 +13,7 @@ MKDIR_BUILD = if not exist "$(BUILD_DIR)" mkdir "$(BUILD_DIR)"
 MKDIR_SANITIZE = if not exist "$(SANITIZE_DIR)" mkdir "$(SANITIZE_DIR)"
 CLEAN_BUILD = if exist "$(BUILD_DIR)" rmdir /S /Q "$(BUILD_DIR)"
 
-TEST_NAMES := test_assertions test_smoke
+TEST_NAMES := test_assertions test_interval_tree test_smoke
 TEST_BINS := $(addprefix $(BUILD_DIR)/,$(addsuffix $(EXEEXT),$(TEST_NAMES)))
 SANITIZE_BINS := $(addprefix $(SANITIZE_DIR)/,$(addsuffix $(EXEEXT),$(TEST_NAMES)))
 
@@ -33,14 +33,26 @@ $(BUILD_DIR)/%$(EXEEXT): tests/%.c tests/test.h | $(BUILD_DIR)
 $(SANITIZE_DIR)/%$(EXEEXT): tests/%.c tests/test.h | $(SANITIZE_DIR)
 	$(SAN_CC) $(SAN_FLAGS) -Itests $< -o $@
 
+$(BUILD_DIR)/test_interval_tree$(EXEEXT): tests/test_interval_tree.c \
+		src/interval_tree.c include/interval_tree.h tests/test.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -Iinclude -Itests tests/test_interval_tree.c \
+		src/interval_tree.c -o $@
+
+$(SANITIZE_DIR)/test_interval_tree$(EXEEXT): tests/test_interval_tree.c \
+		src/interval_tree.c include/interval_tree.h tests/test.h | $(SANITIZE_DIR)
+	$(SAN_CC) $(SAN_FLAGS) -Iinclude -Itests tests/test_interval_tree.c \
+		src/interval_tree.c -o $@
+
 test: $(TEST_BINS)
 	$(BUILD_DIR)/test_assertions$(EXEEXT)
+	$(BUILD_DIR)/test_interval_tree$(EXEEXT)
 	$(BUILD_DIR)/test_smoke$(EXEEXT)
 
 stress: test
 
 sanitize: $(SANITIZE_BINS)
 	set "PATH=$(SAN_RUNTIME_DIR);%PATH%" && $(subst /,\,$(SANITIZE_DIR)/test_assertions$(EXEEXT))
+	set "PATH=$(SAN_RUNTIME_DIR);%PATH%" && $(subst /,\,$(SANITIZE_DIR)/test_interval_tree$(EXEEXT))
 	set "PATH=$(SAN_RUNTIME_DIR);%PATH%" && $(subst /,\,$(SANITIZE_DIR)/test_smoke$(EXEEXT))
 
 clean:

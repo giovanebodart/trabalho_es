@@ -74,12 +74,11 @@ pode ser informado com `SAN_ROOT`.
 
 ## Estado atual
 
-O repositório está na Fase 0, Commit 3, definida em `PLAN.md`. Há um sistema de
-build, testes separados por módulo e configuração de sanitizadores, mas ainda
-não existe implementação do coletor.
+O repositório está na Fase 1, Commit 4, definida em `PLAN.md`. O nó da árvore
+de intervalos usa limites `uintptr_t`, intervalos semiabertos e metadados de
+altura e maior endereço final da subárvore.
 
-O próximo passo é o Commit 4: definir o nó da árvore de intervalos e suas
-operações auxiliares básicas.
+O próximo passo é o Commit 5: implementar e testar as rotações AVL.
 
 ## Documentação do desenvolvimento
 

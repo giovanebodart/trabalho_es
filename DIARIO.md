@@ -54,3 +54,16 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: testes normais passaram sem warnings; testes ASan/UBSan compilaram e executaram com Clang 21.1.8; o autoteste confirmou que uma asserção malsucedida retorna `EXIT_FAILURE`, diferente de zero; `build/` foi removido ao final.
 - Erros da IA ou sugestões rejeitadas: a tentativa inicial de usar o pacote Clang do ambiente `mingw64` foi incorreta porque ele não inclui runtimes de sanitização compatíveis; a mistura manual de runtimes `clang64` com o linker `mingw64` também foi rejeitada após erros de ligação; a solução foi usar integralmente a cadeia `clang64` no alvo auxiliar.
 - Pendências e próximo passo: revisar o diff, criar o Commit 3 após autorização explícita e iniciar o Commit 4 com a definição do nó da árvore de intervalos.
+
+## 2026-06-20 16:03 — Nó básico da árvore de intervalos
+
+- Prompt/objetivo: começar o Commit 4 da Fase 1.
+- Fase do PLAN.md: Fase 1 — Árvore de intervalos; Commit 4.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, `Makefile`, infraestrutura de testes e histórico Git.
+- Alterações realizadas: criação de `IntervalNode`, auxiliares de altura e `max_end`, atualização dos metadados do nó, testes unitários e integração do novo módulo aos builds normal e sanitizado.
+- Decisões e justificativas: intervalos são semiabertos `[start, end)`, altura nula é zero e altura de folha é um; `max_end` armazena o maior limite final exclusivo da subárvore; intervalos vazios, invertidos e nó nulo são rejeitados na inicialização.
+- Riscos ou erros procurados: comparação incorreta de endereços, overflow no limite `UINTPTR_MAX`, inconsistência entre limites inclusivos e exclusivos, altura incorreta, `max_end` desatualizado e dereferência de filho nulo.
+- Testes executados: `mingw32-make clean`, `mingw32-make all`, `mingw32-make test`, `mingw32-make sanitize`, `mingw32-make stress`, teste específico de `test_interval_tree` e `git diff --check`.
+- Resultados: compilação sem warnings; testes normais e ASan/UBSan passaram; foram cobertos nós unitários, intervalos inválidos, limites zero e `UINTPTR_MAX`, sentinelas nulas e propagação de altura e `max_end`.
+- Erros da IA ou sugestões rejeitadas: nenhum identificado.
+- Pendências e próximo passo: revisar o diff, criar o Commit 4 após autorização explícita e então implementar as rotações AVL do Commit 5.
