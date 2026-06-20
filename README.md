@@ -74,12 +74,12 @@ pode ser informado com `SAN_ROOT`.
 
 ## Estado atual
 
-O repositório está na Fase 1, Commit 5, definida em `PLAN.md`. A árvore de
-intervalos possui rotações AVL simples e duplas que preservam ordenação,
-altura e `max_end`.
+O repositório está na Fase 1, Commit 6, definida em `PLAN.md`. A árvore de
+intervalos aceita inserções de nós fornecidos pelo chamador, rejeita
+sobreposições e se rebalanceia preservando altura e `max_end`.
 
-O próximo passo é o Commit 6: implementar inserção com rejeição de
-sobreposições e rebalanceamento.
+O próximo passo é o Commit 7: implementar busca por qualquer endereço dentro
+de um intervalo.
 
 ## Documentação do desenvolvimento
 

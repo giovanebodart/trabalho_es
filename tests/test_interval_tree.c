@@ -231,6 +231,171 @@ static int test_rotation_preconditions(void)
     return EXIT_SUCCESS;
 }
 
+static int validate_inserted_tree(const IntervalNode *node,
+                                  uintptr_t lower,
+                                  uintptr_t upper,
+                                  int *height,
+                                  uintptr_t *max_end)
+{
+    int left_height;
+    int right_height;
+    uintptr_t left_max_end;
+    uintptr_t right_max_end;
+    uintptr_t expected_max_end;
+    int balance;
+
+    if (node == NULL) {
+        *height = 0;
+        *max_end = (uintptr_t)0;
+        return EXIT_SUCCESS;
+    }
+
+    TEST_ASSERT(lower <= node->start);
+    TEST_ASSERT(node->start < node->end);
+    TEST_ASSERT(node->end <= upper);
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS,
+                       validate_inserted_tree(node->left, lower, node->start,
+                                              &left_height, &left_max_end));
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS,
+                       validate_inserted_tree(node->right, node->end, upper,
+                                              &right_height, &right_max_end));
+
+    *height = 1 + (left_height > right_height ? left_height : right_height);
+    expected_max_end = node->end;
+    if (left_max_end > expected_max_end) {
+        expected_max_end = left_max_end;
+    }
+    if (right_max_end > expected_max_end) {
+        expected_max_end = right_max_end;
+    }
+
+    balance = left_height - right_height;
+    TEST_ASSERT(balance >= -1 && balance <= 1);
+    TEST_ASSERT_EQ_INT(*height, node->height);
+    TEST_ASSERT(node->max_end == expected_max_end);
+    *max_end = expected_max_end;
+    return EXIT_SUCCESS;
+}
+
+static int insert_sequence(const uintptr_t *starts, size_t count)
+{
+    IntervalNode nodes[16];
+    IntervalNode *root = NULL;
+    int height;
+    uintptr_t max_end;
+    uintptr_t expected_max_end = (uintptr_t)0;
+    size_t index;
+
+    TEST_ASSERT(count <= 16);
+    for (index = 0; index < count; ++index) {
+        TEST_ASSERT(interval_node_init(&nodes[index], starts[index],
+                                       starts[index] + (uintptr_t)5));
+        TEST_ASSERT(interval_tree_insert(&root, &nodes[index]));
+        if (nodes[index].end > expected_max_end) {
+            expected_max_end = nodes[index].end;
+        }
+    }
+
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS,
+                       validate_inserted_tree(root, (uintptr_t)0, UINTPTR_MAX,
+                                              &height, &max_end));
+    TEST_ASSERT(max_end == expected_max_end);
+    return EXIT_SUCCESS;
+}
+
+static int test_insert_sequences(void)
+{
+    static const uintptr_t increasing[] = {
+        10, 20, 30, 40, 50, 60, 70, 80
+    };
+    static const uintptr_t decreasing[] = {
+        80, 70, 60, 50, 40, 30, 20, 10
+    };
+    static const uintptr_t pseudo_random[] = {
+        90, 20, 150, 40, 110, 10, 160, 70,
+        130, 50, 100, 30, 140, 80, 60, 120
+    };
+
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS,
+                       insert_sequence(increasing,
+                                       sizeof increasing / sizeof *increasing));
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS,
+                       insert_sequence(decreasing,
+                                       sizeof decreasing / sizeof *decreasing));
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS,
+                       insert_sequence(pseudo_random,
+                                       sizeof pseudo_random
+                                       / sizeof *pseudo_random));
+    return EXIT_SUCCESS;
+}
+
+static int test_rejects_overlaps_without_changes(void)
+{
+    IntervalNode root_node;
+    IntervalNode left;
+    IntervalNode right;
+    IntervalNode overlap_start;
+    IntervalNode overlap_end;
+    IntervalNode contained;
+    IntervalNode containing;
+    IntervalNode duplicate;
+    IntervalNode *root = NULL;
+    int original_height;
+    uintptr_t original_max_end;
+
+    TEST_ASSERT(interval_node_init(&root_node, (uintptr_t)100,
+                                   (uintptr_t)200));
+    TEST_ASSERT(interval_node_init(&left, (uintptr_t)50, (uintptr_t)100));
+    TEST_ASSERT(interval_node_init(&right, (uintptr_t)200, (uintptr_t)250));
+    TEST_ASSERT(interval_tree_insert(&root, &root_node));
+    TEST_ASSERT(interval_tree_insert(&root, &left));
+    TEST_ASSERT(interval_tree_insert(&root, &right));
+    original_height = root->height;
+    original_max_end = root->max_end;
+
+    TEST_ASSERT(interval_node_init(&overlap_start, (uintptr_t)90,
+                                   (uintptr_t)110));
+    TEST_ASSERT(interval_node_init(&overlap_end, (uintptr_t)190,
+                                   (uintptr_t)210));
+    TEST_ASSERT(interval_node_init(&contained, (uintptr_t)120,
+                                   (uintptr_t)150));
+    TEST_ASSERT(interval_node_init(&containing, (uintptr_t)40,
+                                   (uintptr_t)260));
+    TEST_ASSERT(interval_node_init(&duplicate, (uintptr_t)100,
+                                   (uintptr_t)200));
+
+    TEST_ASSERT(!interval_tree_insert(&root, &overlap_start));
+    TEST_ASSERT(!interval_tree_insert(&root, &overlap_end));
+    TEST_ASSERT(!interval_tree_insert(&root, &contained));
+    TEST_ASSERT(!interval_tree_insert(&root, &containing));
+    TEST_ASSERT(!interval_tree_insert(&root, &duplicate));
+    TEST_ASSERT_EQ_INT(original_height, root->height);
+    TEST_ASSERT(root->max_end == original_max_end);
+    TEST_ASSERT(root->left == &left);
+    TEST_ASSERT(root->right == &right);
+    return EXIT_SUCCESS;
+}
+
+static int test_insert_preconditions(void)
+{
+    IntervalNode node;
+    IntervalNode attached;
+    IntervalNode child;
+    IntervalNode *root = NULL;
+
+    TEST_ASSERT(!interval_tree_insert(NULL, NULL));
+    TEST_ASSERT(!interval_tree_insert(&root, NULL));
+    TEST_ASSERT(interval_node_init(&node, (uintptr_t)10, (uintptr_t)20));
+    TEST_ASSERT(!interval_tree_insert(NULL, &node));
+
+    TEST_ASSERT(interval_node_init(&attached, (uintptr_t)30, (uintptr_t)40));
+    TEST_ASSERT(interval_node_init(&child, (uintptr_t)20, (uintptr_t)25));
+    attached.left = &child;
+    TEST_ASSERT(!interval_tree_insert(&root, &attached));
+    TEST_ASSERT(root == NULL);
+    return EXIT_SUCCESS;
+}
+
 int main(void)
 {
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_rejects_invalid_intervals());
@@ -242,6 +407,10 @@ int main(void)
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_rotate_left());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_double_rotations());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_rotation_preconditions());
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_insert_sequences());
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS,
+                       test_rejects_overlaps_without_changes());
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_insert_preconditions());
     puts("test_interval_tree: ok");
     return EXIT_SUCCESS;
 }

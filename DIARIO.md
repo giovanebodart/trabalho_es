@@ -93,3 +93,16 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: compilação sem warnings; testes normais e ASan/UBSan passaram; rotações simples e duplas preservaram ordenação sem sobreposição, subárvores de transferência, alturas, fatores de balanceamento e `max_end`.
 - Erros da IA ou sugestões rejeitadas: os primeiros dados dos testes de transferência continham intervalos sobrepostos; a revisão detectou e corrigiu os limites antes da entrega; o pedido anterior de pular o Commit 5 permaneceu registrado como rejeitado por dependência técnica.
 - Pendências e próximo passo: revisar o diff, criar o Commit 5 após autorização explícita e então implementar a inserção AVL do Commit 6.
+
+## 2026-06-20 16:36 — Inserção AVL de intervalos
+
+- Prompt/objetivo: prosseguir para o Commit 6 da Fase 1.
+- Fase do PLAN.md: Fase 1 — Árvore de intervalos; Commit 6.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, cabeçalho, implementação e testes da árvore de intervalos, estado e histórico Git.
+- Alterações realizadas: adição da API de inserção, detecção de sobreposição, atualização de metadados, rebalanceamento AVL e testes com sequências crescentes, decrescentes e pseudoaleatórias determinísticas.
+- Decisões e justificativas: a árvore não aloca metadados; o chamador fornece um nó válido e destacado; a API recebe ponteiro para a raiz para poder substituí-la após rotações; para intervalos semiabertos, a inserção segue à esquerda quando `node->end <= root->start`, à direita quando `node->start >= root->end` e rejeita os demais casos como sobreposição.
+- Riscos ou erros procurados: aceitação de sobreposição parcial, contenção ou duplicata; alteração da árvore após falha; perda da raiz após rotação; metadados desatualizados; dupla avaliação de limites; degradação de sequências ordenadas; inserção de nó já conectado.
+- Testes executados: `mingw32-make clean`, `mingw32-make all`, `mingw32-make test`, `mingw32-make sanitize`, `mingw32-make stress`, teste específico de `test_interval_tree` e `git diff --check`.
+- Resultados: compilação sem warnings; testes normais e ASan/UBSan passaram; um verificador interno de teste recalculou ordenação sem sobreposição, altura, fator AVL e `max_end` após cada sequência; adjacência foi aceita e sobreposições parciais, contidas, abrangentes e duplicadas foram rejeitadas sem mudança estrutural.
+- Erros da IA ou sugestões rejeitadas: nenhum identificado.
+- Pendências e próximo passo: revisar o diff, criar o Commit 6 após autorização explícita e então implementar a busca pontual do Commit 7.

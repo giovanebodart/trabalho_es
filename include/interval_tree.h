@@ -31,4 +31,6 @@ IntervalNode *interval_node_rotate_right(IntervalNode *root);
 IntervalNode *interval_node_rotate_left_right(IntervalNode *root);
 IntervalNode *interval_node_rotate_right_left(IntervalNode *root);
 
+bool interval_tree_insert(IntervalNode **root, IntervalNode *node);
+
 #endif

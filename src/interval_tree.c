@@ -116,3 +116,66 @@ IntervalNode *interval_node_rotate_right_left(IntervalNode *root)
     root->right = interval_node_rotate_right(root->right);
     return interval_node_rotate_left(root);
 }
+
+static IntervalNode *interval_node_rebalance(IntervalNode *root)
+{
+    int balance;
+
+    interval_node_update(root);
+    balance = interval_node_balance_factor(root);
+
+    if (balance > 1) {
+        if (interval_node_balance_factor(root->left) < 0) {
+            return interval_node_rotate_left_right(root);
+        }
+        return interval_node_rotate_right(root);
+    }
+
+    if (balance < -1) {
+        if (interval_node_balance_factor(root->right) > 0) {
+            return interval_node_rotate_right_left(root);
+        }
+        return interval_node_rotate_left(root);
+    }
+
+    return root;
+}
+
+static IntervalNode *interval_tree_insert_node(IntervalNode *root,
+                                               IntervalNode *node,
+                                               bool *inserted)
+{
+    if (root == NULL) {
+        node->height = 1;
+        node->max_end = node->end;
+        *inserted = true;
+        return node;
+    }
+
+    if (node->end <= root->start) {
+        root->left = interval_tree_insert_node(root->left, node, inserted);
+    } else if (node->start >= root->end) {
+        root->right = interval_tree_insert_node(root->right, node, inserted);
+    } else {
+        return root;
+    }
+
+    if (!*inserted) {
+        return root;
+    }
+
+    return interval_node_rebalance(root);
+}
+
+bool interval_tree_insert(IntervalNode **root, IntervalNode *node)
+{
+    bool inserted = false;
+
+    if (root == NULL || node == NULL || node->start >= node->end
+        || node->left != NULL || node->right != NULL) {
+        return false;
+    }
+
+    *root = interval_tree_insert_node(*root, node, &inserted);
+    return inserted;
+}
