@@ -119,3 +119,16 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: compilação sem warnings; testes normais e ASan/UBSan passaram; início, interior e último byte retornaram o nó correto; limite final e lacunas retornaram `NULL`; em uma árvore controlada de 31 nós, todas as buscas examinaram no máximo a altura da árvore; a poda de uma subárvore esquerda foi confirmada com uma única visita.
 - Erros da IA ou sugestões rejeitadas: o primeiro fixture criado para demonstrar a poda tinha fator AVL igual a dois; a revisão adicionou a subárvore direita necessária e manteve a demonstração em uma árvore balanceada.
 - Pendências e próximo passo: revisar o diff, criar o Commit 7 após autorização explícita e então implementar a remoção AVL do Commit 8.
+
+## 2026-06-20 17:12 — Remoção AVL por endereço inicial
+
+- Prompt/objetivo: prosseguir para o Commit 8 da Fase 1.
+- Fase do PLAN.md: Fase 1 — Árvore de intervalos; Commit 8.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, cabeçalho, implementação e testes da árvore de intervalos, estado e histórico Git.
+- Alterações realizadas: adição da remoção por endereço inicial, extração do sucessor mínimo, transplante de nó, destaque do nó removido, atualização de metadados, rebalanceamento e testes dos casos exigidos.
+- Decisões e justificativas: a API devolve opcionalmente o nó removido já destacado; em nós com dois filhos, o sucessor real é transplantado em vez de copiar seus limites, preservando a identidade do metadado associado ao objeto; a extração do mínimo rebalanceia o caminho de retorno antes do transplante.
+- Riscos ou erros procurados: perda do filho direito do sucessor, cópia que altere a identidade dos nós, ponteiros residuais no nó removido, falha que modifique a árvore, `max_end` que não diminua, raiz não substituída e desequilíbrio após remoções sucessivas.
+- Testes executados: `mingw32-make clean`, `mingw32-make all`, `mingw32-make test`, `mingw32-make sanitize`, `mingw32-make stress`, teste específico de `test_interval_tree` e `git diff --check`.
+- Resultados: compilação sem warnings; testes normais e ASan/UBSan passaram; foram cobertos folha, nó com um filho, raiz com dois filhos e sucessor com filho direito, raiz única, endereço ausente, saída opcional e rebalanceamento com redução de `max_end`.
+- Erros da IA ou sugestões rejeitadas: nenhum identificado.
+- Pendências e próximo passo: revisar o diff, criar o Commit 8 após autorização explícita e então implementar o verificador público de invariantes do Commit 9.

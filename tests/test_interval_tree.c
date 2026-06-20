@@ -509,6 +509,155 @@ static int test_find_prunes_left_subtree(void)
     return EXIT_SUCCESS;
 }
 
+static int validate_tree_after_removal(IntervalNode *root)
+{
+    int height;
+    uintptr_t max_end;
+
+    return validate_inserted_tree(root, (uintptr_t)0, UINTPTR_MAX,
+                                  &height, &max_end);
+}
+
+static int validate_detached_node(const IntervalNode *node)
+{
+    TEST_ASSERT(node != NULL);
+    TEST_ASSERT(node->left == NULL);
+    TEST_ASSERT(node->right == NULL);
+    TEST_ASSERT_EQ_INT(1, node->height);
+    TEST_ASSERT(node->max_end == node->end);
+    return EXIT_SUCCESS;
+}
+
+static int test_remove_leaf(void)
+{
+    IntervalNode nodes[3];
+    IntervalNode *root = NULL;
+    IntervalNode *removed = NULL;
+
+    TEST_ASSERT(interval_node_init(&nodes[0], (uintptr_t)40, (uintptr_t)45));
+    TEST_ASSERT(interval_node_init(&nodes[1], (uintptr_t)20, (uintptr_t)25));
+    TEST_ASSERT(interval_node_init(&nodes[2], (uintptr_t)60, (uintptr_t)65));
+    TEST_ASSERT(interval_tree_insert(&root, &nodes[0]));
+    TEST_ASSERT(interval_tree_insert(&root, &nodes[1]));
+    TEST_ASSERT(interval_tree_insert(&root, &nodes[2]));
+
+    TEST_ASSERT(interval_tree_remove(&root, nodes[1].start, &removed));
+    TEST_ASSERT(removed == &nodes[1]);
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS, validate_detached_node(removed));
+    TEST_ASSERT(interval_tree_find(root, nodes[1].start) == NULL);
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS, validate_tree_after_removal(root));
+
+    TEST_ASSERT(interval_tree_insert(&root, removed));
+    TEST_ASSERT(interval_tree_find(root, nodes[1].start) == &nodes[1]);
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS, validate_tree_after_removal(root));
+    return EXIT_SUCCESS;
+}
+
+static int test_remove_node_with_one_child(void)
+{
+    IntervalNode nodes[4];
+    IntervalNode *root = NULL;
+    IntervalNode *removed = NULL;
+
+    TEST_ASSERT(interval_node_init(&nodes[0], (uintptr_t)40, (uintptr_t)45));
+    TEST_ASSERT(interval_node_init(&nodes[1], (uintptr_t)20, (uintptr_t)25));
+    TEST_ASSERT(interval_node_init(&nodes[2], (uintptr_t)60, (uintptr_t)65));
+    TEST_ASSERT(interval_node_init(&nodes[3], (uintptr_t)10, (uintptr_t)15));
+    TEST_ASSERT(interval_tree_insert(&root, &nodes[0]));
+    TEST_ASSERT(interval_tree_insert(&root, &nodes[1]));
+    TEST_ASSERT(interval_tree_insert(&root, &nodes[2]));
+    TEST_ASSERT(interval_tree_insert(&root, &nodes[3]));
+    TEST_ASSERT(nodes[1].left == &nodes[3]);
+
+    TEST_ASSERT(interval_tree_remove(&root, nodes[1].start, &removed));
+    TEST_ASSERT(removed == &nodes[1]);
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS, validate_detached_node(removed));
+    TEST_ASSERT(interval_tree_find(root, nodes[3].start) == &nodes[3]);
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS, validate_tree_after_removal(root));
+    return EXIT_SUCCESS;
+}
+
+static int test_remove_root_with_two_children(void)
+{
+    static const uintptr_t starts[] = {40, 20, 60, 10, 30, 50, 70, 55};
+    IntervalNode nodes[8];
+    IntervalNode *root = NULL;
+    IntervalNode *removed = NULL;
+    size_t index;
+
+    for (index = 0; index < 8; ++index) {
+        TEST_ASSERT(interval_node_init(&nodes[index], starts[index],
+                                       starts[index] + (uintptr_t)5));
+        TEST_ASSERT(interval_tree_insert(&root, &nodes[index]));
+    }
+    TEST_ASSERT(root == &nodes[0]);
+    TEST_ASSERT(root->left != NULL);
+    TEST_ASSERT(root->right != NULL);
+
+    TEST_ASSERT(interval_tree_remove(&root, nodes[0].start, &removed));
+    TEST_ASSERT(removed == &nodes[0]);
+    TEST_ASSERT(root == &nodes[5]);
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS, validate_detached_node(removed));
+    TEST_ASSERT(interval_tree_find(root, removed->start) == NULL);
+    for (index = 1; index < 8; ++index) {
+        TEST_ASSERT(interval_tree_find(root, nodes[index].start)
+                    == &nodes[index]);
+    }
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS, validate_tree_after_removal(root));
+    return EXIT_SUCCESS;
+}
+
+static int test_remove_rebalances_and_handles_missing(void)
+{
+    static const uintptr_t starts[] = {40, 20, 60, 10, 30, 50, 70, 5};
+    IntervalNode nodes[8];
+    IntervalNode *root = NULL;
+    IntervalNode *original_root;
+    IntervalNode *removed = &nodes[0];
+    int original_height;
+    uintptr_t original_max_end;
+    size_t index;
+
+    for (index = 0; index < 8; ++index) {
+        TEST_ASSERT(interval_node_init(&nodes[index], starts[index],
+                                       starts[index] + (uintptr_t)5));
+        TEST_ASSERT(interval_tree_insert(&root, &nodes[index]));
+    }
+
+    original_root = root;
+    original_height = root->height;
+    original_max_end = root->max_end;
+    TEST_ASSERT(!interval_tree_remove(&root, (uintptr_t)999, &removed));
+    TEST_ASSERT(removed == NULL);
+    TEST_ASSERT(root == original_root);
+    TEST_ASSERT_EQ_INT(original_height, root->height);
+    TEST_ASSERT(root->max_end == original_max_end);
+    TEST_ASSERT(interval_tree_remove(&root, nodes[6].start, NULL));
+    TEST_ASSERT(interval_tree_remove(&root, nodes[2].start, &removed));
+    TEST_ASSERT(removed == &nodes[2]);
+    TEST_ASSERT(root == &nodes[1]);
+    TEST_ASSERT(root->max_end == (uintptr_t)55);
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS, validate_detached_node(removed));
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS, validate_tree_after_removal(root));
+
+    TEST_ASSERT(!interval_tree_remove(NULL, (uintptr_t)20, &removed));
+    TEST_ASSERT(removed == NULL);
+    return EXIT_SUCCESS;
+}
+
+static int test_remove_single_root(void)
+{
+    IntervalNode node;
+    IntervalNode *root = NULL;
+
+    TEST_ASSERT(interval_node_init(&node, (uintptr_t)100, (uintptr_t)110));
+    TEST_ASSERT(interval_tree_insert(&root, &node));
+    TEST_ASSERT(interval_tree_remove(&root, node.start, NULL));
+    TEST_ASSERT(root == NULL);
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS, validate_detached_node(&node));
+    return EXIT_SUCCESS;
+}
+
 int main(void)
 {
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_rejects_invalid_intervals());
@@ -528,6 +677,12 @@ int main(void)
                        test_find_boundaries_and_interior());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_find_comparison_counts());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_find_prunes_left_subtree());
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_remove_leaf());
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_remove_node_with_one_child());
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_remove_root_with_two_children());
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS,
+                       test_remove_rebalances_and_handles_missing());
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_remove_single_root());
     puts("test_interval_tree: ok");
     return EXIT_SUCCESS;
 }

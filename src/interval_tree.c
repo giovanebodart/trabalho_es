@@ -180,6 +180,81 @@ bool interval_tree_insert(IntervalNode **root, IntervalNode *node)
     return inserted;
 }
 
+static IntervalNode *interval_tree_detach_min(IntervalNode *root,
+                                              IntervalNode **minimum)
+{
+    if (root->left == NULL) {
+        *minimum = root;
+        return root->right;
+    }
+
+    root->left = interval_tree_detach_min(root->left, minimum);
+    return interval_node_rebalance(root);
+}
+
+static IntervalNode *interval_tree_remove_node(IntervalNode *root,
+                                               uintptr_t start,
+                                               IntervalNode **removed)
+{
+    IntervalNode *replacement;
+    IntervalNode *new_root;
+
+    if (root == NULL) {
+        return NULL;
+    }
+
+    if (start < root->start) {
+        root->left = interval_tree_remove_node(root->left, start, removed);
+    } else if (start > root->start) {
+        root->right = interval_tree_remove_node(root->right, start, removed);
+    } else {
+        *removed = root;
+
+        if (root->left == NULL) {
+            new_root = root->right;
+        } else if (root->right == NULL) {
+            new_root = root->left;
+        } else {
+            root->right = interval_tree_detach_min(root->right, &replacement);
+            replacement->left = root->left;
+            replacement->right = root->right;
+            new_root = interval_node_rebalance(replacement);
+        }
+
+        root->left = NULL;
+        root->right = NULL;
+        root->height = 1;
+        root->max_end = root->end;
+        return new_root;
+    }
+
+    if (*removed == NULL) {
+        return root;
+    }
+
+    return interval_node_rebalance(root);
+}
+
+bool interval_tree_remove(IntervalNode **root,
+                          uintptr_t start,
+                          IntervalNode **removed)
+{
+    IntervalNode *detached = NULL;
+
+    if (removed != NULL) {
+        *removed = NULL;
+    }
+    if (root == NULL) {
+        return false;
+    }
+
+    *root = interval_tree_remove_node(*root, start, &detached);
+    if (removed != NULL) {
+        *removed = detached;
+    }
+    return detached != NULL;
+}
+
 IntervalNode *interval_tree_find_counted(IntervalNode *root,
                                          uintptr_t address,
                                          size_t *comparisons)

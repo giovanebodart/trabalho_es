@@ -74,11 +74,12 @@ pode ser informado com `SAN_ROOT`.
 
 ## Estado atual
 
-O repositório está na Fase 1, Commit 7, definida em `PLAN.md`. A árvore localiza
-o intervalo que contém um endereço, incluindo ponteiros interiores, com poda
-por `max_end` e busca iterativa.
+O repositório está na Fase 1, Commit 8, definida em `PLAN.md`. A árvore remove
+nós por endereço inicial, preserva a identidade dos metadados e se rebalanceia
+após remoções.
 
-O próximo passo é o Commit 8: implementar remoção AVL.
+O próximo passo é o Commit 9: validar publicamente todas as invariantes da
+árvore.
 
 ## Documentação do desenvolvimento
 

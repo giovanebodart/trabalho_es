@@ -33,6 +33,9 @@ IntervalNode *interval_node_rotate_left_right(IntervalNode *root);
 IntervalNode *interval_node_rotate_right_left(IntervalNode *root);
 
 bool interval_tree_insert(IntervalNode **root, IntervalNode *node);
+bool interval_tree_remove(IntervalNode **root,
+                          uintptr_t start,
+                          IntervalNode **removed);
 IntervalNode *interval_tree_find(IntervalNode *root, uintptr_t address);
 /* comparisons receives the number of interval nodes examined. */
 IntervalNode *interval_tree_find_counted(IntervalNode *root,
