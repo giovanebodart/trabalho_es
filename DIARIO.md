@@ -171,3 +171,16 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: instalação, logs e entrada de `PATH` removidos; o projeto nunca teve dependência de Dr. Memory e permanece funcional sem ele.
 - Erros da IA ou sugestões rejeitadas: nenhum identificado.
 - Pendências e próximo passo: criar o Commit 9 e então iniciar a inicialização e o encerramento do coletor no Commit 10.
+
+## 2026-06-21 00:51 — Inicialização do estado do coletor
+
+- Prompt/objetivo: prosseguir para o Commit 10 da Fase 2.
+- Fase do PLAN.md: Fase 2 — Heap gerenciado e API mínima; Commit 10.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, `Makefile`, infraestrutura de testes, documentação oficial Win32 e estado Git.
+- Alterações realizadas: criação da API inicial do coletor, estado global interno, captura dos limites da pilha, vínculo com a thread proprietária, encerramento do estado, consulta de status, teste específico e integração aos builds normal e sanitizado.
+- Decisões e justificativas: `GetCurrentThreadStackLimits()` fornece os limites alocados pelo Windows e exige `_WIN32_WINNT >= 0x0602`; o projeto define Windows 10 como alvo de cabeçalho por suportar apenas Windows 11; `gc_shutdown()` mantém a assinatura `void` do plano e comunica erros por `gc_get_status()`; chamadas de outra thread são rejeitadas porque o coletor permanece explicitamente monothread.
+- Riscos ou erros procurados: limites invertidos, endereço atual fora da pilha capturada, inicialização repetida, encerramento sem inicialização, encerramento pela thread errada, estado residual após shutdown e vazamento do handle usado no teste.
+- Testes executados: `mingw32-make clean`, `mingw32-make all`, teste específico `build\test_gc.exe`, `mingw32-make test`, `mingw32-make sanitize`, `mingw32-make stress`, inspeção PE/imports com `objdump` e `git diff --check`.
+- Resultados: compilação GCC e Clang sem warnings; testes normais, stress e ASan/UBSan passaram; o executável foi confirmado como PE x86-64 e importa as APIs Win32 esperadas; limites válidos contiveram uma variável local; inicialização duplicada, argumento inválido, shutdown sem inicialização e shutdown por outra thread foram detectados; o estado e os limites foram zerados no encerramento.
+- Erros da IA ou sugestões rejeitadas: nenhum identificado.
+- Pendências e próximo passo: revisar o diff, criar o Commit 10 somente após autorização explícita e então implementar o protótipo de alocação com `VirtualAlloc()` no Commit 11.

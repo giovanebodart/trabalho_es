@@ -74,12 +74,13 @@ pode ser informado com `SAN_ROOT`.
 
 ## Estado atual
 
-O repositório está na Fase 1, Commit 9, definida em `PLAN.md`. Em builds sem
-`NDEBUG`, `interval_tree_validate()` verifica ordenação, ausência de
-sobreposição, alturas, balanceamento AVL e `max_end`.
+O repositório está na Fase 2, Commit 10, definida em `PLAN.md`. `gc_init()`
+captura os limites da pilha da thread atual e cria o estado interno do coletor;
+chamadas repetidas ou feitas por outra thread são detectáveis por
+`gc_get_status()`.
 
-O próximo passo é o Commit 10: criar a inicialização e o encerramento do
-coletor.
+O próximo passo é o Commit 11: implementar o protótipo de alocação com
+`VirtualAlloc()`.
 
 ## Documentação do desenvolvimento
 
