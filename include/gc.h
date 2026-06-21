@@ -24,6 +24,7 @@ typedef enum {
 
 int gc_init(void);
 void *gc_malloc(size_t size);
+int gc_set_memory_limit(size_t bytes);
 int gc_get_stats(GCStats *out);
 void gc_shutdown(void);
 

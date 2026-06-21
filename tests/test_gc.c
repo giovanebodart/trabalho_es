@@ -1,6 +1,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
+#include "gc_config.h"
 #include "gc.h"
 #include "gc_internal.h"
 #include "test.h"
@@ -13,6 +14,14 @@ static DWORD WINAPI shutdown_from_other_thread(LPVOID context)
 {
     (void)context;
     gc_shutdown();
+    return 0;
+}
+
+static DWORD WINAPI set_limit_from_other_thread(LPVOID context)
+{
+    size_t limit = *(const size_t *)context;
+
+    (void)gc_set_memory_limit(limit);
     return 0;
 }
 
@@ -98,6 +107,7 @@ static int test_virtual_alloc_objects(void)
     size_t requested;
     size_t reserved;
     size_t impossible_size;
+    size_t initial_limit;
     MEMORY_BASIC_INFORMATION memory_info;
 
     GetSystemInfo(&system_info);
@@ -106,10 +116,13 @@ static int test_virtual_alloc_objects(void)
     TEST_ASSERT_EQ_INT(GC_STATUS_INVALID_ARGUMENT, gc_get_status());
     TEST_ASSERT(gc_malloc(SIZE_MAX) == NULL);
     TEST_ASSERT_EQ_INT(GC_STATUS_SIZE_OVERFLOW, gc_get_status());
+    initial_limit = gc_internal_memory_limit();
     impossible_size = SIZE_MAX
                       - (size_t)system_info.dwPageSize * (size_t)2;
     TEST_ASSERT(gc_malloc(impossible_size) == NULL);
     TEST_ASSERT_EQ_INT(GC_STATUS_OUT_OF_MEMORY, gc_get_status());
+    TEST_ASSERT(gc_internal_collection_request_count() == (size_t)1);
+    TEST_ASSERT(gc_internal_memory_limit() == initial_limit);
 
     small = gc_malloc(17);
     large = gc_malloc((size_t)system_info.dwPageSize + (size_t)1);
@@ -148,6 +161,49 @@ static int test_virtual_alloc_objects(void)
     return EXIT_SUCCESS;
 }
 
+static int test_memory_pressure(void)
+{
+    SYSTEM_INFO system_info;
+    size_t default_limit;
+    size_t page_size;
+    HANDLE thread;
+    DWORD wait_result;
+
+    GetSystemInfo(&system_info);
+    page_size = (size_t)system_info.dwPageSize;
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_init());
+    default_limit = gc_internal_memory_limit();
+    TEST_ASSERT(default_limit == GC_DEFAULT_MEMORY_LIMIT);
+    TEST_ASSERT_EQ_INT(GC_FAILURE, gc_set_memory_limit(0));
+    TEST_ASSERT_EQ_INT(GC_STATUS_INVALID_ARGUMENT, gc_get_status());
+
+    thread = CreateThread(NULL, 0, set_limit_from_other_thread,
+                          &page_size, 0, NULL);
+    TEST_ASSERT(thread != NULL);
+    wait_result = WaitForSingleObject(thread, INFINITE);
+    TEST_ASSERT(CloseHandle(thread));
+    TEST_ASSERT(wait_result == WAIT_OBJECT_0);
+    TEST_ASSERT_EQ_INT(GC_STATUS_WRONG_THREAD, gc_get_status());
+
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_set_memory_limit(page_size));
+    TEST_ASSERT(gc_malloc(1) != NULL);
+    TEST_ASSERT(gc_internal_collection_request_count() == (size_t)0);
+    TEST_ASSERT(gc_internal_memory_limit() == page_size);
+
+    TEST_ASSERT(gc_malloc(1) != NULL);
+    TEST_ASSERT(gc_internal_collection_request_count() == (size_t)1);
+    TEST_ASSERT(gc_internal_memory_limit() == page_size * (size_t)2);
+
+    TEST_ASSERT(gc_malloc(1) != NULL);
+    TEST_ASSERT(gc_internal_collection_request_count() == (size_t)2);
+    TEST_ASSERT(gc_internal_memory_limit() == page_size * (size_t)4);
+    gc_shutdown();
+    TEST_ASSERT_EQ_INT(GC_STATUS_OK, gc_get_status());
+    TEST_ASSERT(gc_internal_collection_request_count() == (size_t)0);
+    TEST_ASSERT(gc_internal_memory_limit() == default_limit);
+    return EXIT_SUCCESS;
+}
+
 static int test_debug_canaries(void)
 {
     unsigned char *object;
@@ -176,6 +232,8 @@ int main(void)
 
     TEST_ASSERT(gc_malloc(8) == NULL);
     TEST_ASSERT_EQ_INT(GC_STATUS_NOT_INITIALIZED, gc_get_status());
+    TEST_ASSERT_EQ_INT(GC_FAILURE, gc_set_memory_limit(4096));
+    TEST_ASSERT_EQ_INT(GC_STATUS_NOT_INITIALIZED, gc_get_status());
     TEST_ASSERT_EQ_INT(GC_FAILURE, gc_get_stats(NULL));
     TEST_ASSERT_EQ_INT(GC_STATUS_INVALID_ARGUMENT, gc_get_status());
     TEST_ASSERT_EQ_INT(GC_FAILURE, gc_get_stats(&stats));
@@ -185,6 +243,7 @@ int main(void)
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS,
                        test_stack_limits_and_thread_ownership());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_virtual_alloc_objects());
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_memory_pressure());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_debug_canaries());
     puts("test_gc: ok");
     return EXIT_SUCCESS;

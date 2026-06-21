@@ -262,3 +262,29 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: staging íntegro; 229 linhas de produção e 311 linhas totais antes deste registro; commit criado com sucesso e sem artefatos em `build/`.
 - Erros da IA ou sugestões rejeitadas: nenhum identificado nesta etapa.
 - Pendências e próximo passo: iniciar o Commit 13 somente após solicitação explícita.
+
+## 2026-06-21 17:18 — Pressão de memória configurável
+
+- Prompt/objetivo: prosseguir para o Commit 13 e implementar pressão de memória antes da futura coleta.
+- Fase do PLAN.md: Fase 2 — Heap gerenciado e API mínima; Commit 13.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, API e estado do coletor, alocador, testes, Makefile, estado e histórico Git.
+- Alterações realizadas: criação de `gc_config.h` com limite padrão de 64 MiB, adição de `gc_set_memory_limit()`, controle interno de solicitações de coleta, crescimento geométrico do limite e testes de limiar, thread, falha e reinicialização.
+- Decisões e justificativas: o limite contabiliza bytes reservados porque essa é a pressão real exercida pelo protótipo com um `VirtualAlloc()` por objeto; ao ultrapassá-lo, a solicitação é registrada, mas nenhuma coleta fictícia é executada antes do mark-sweep; o novo limite só é efetivado depois de alocação e inserção bem-sucedidas, preservando o valor anterior quando `VirtualAlloc()` falha.
+- Riscos ou erros procurados: overflow ao somar bytes reservados ou dobrar o limite, laço de crescimento sem término, alteração do limite após falha, disparo no limiar exato, contagem incorreta de solicitações, acesso por thread não proprietária, estado residual após shutdown e interferência nas estatísticas ou na AVL.
+- Testes executados: `mingw32-make clean`, `mingw32-make all`, teste específico `build\test_gc.exe`, compilação de `gc.c` e `allocator.c` com `-DNDEBUG`, além da suíte completa, sanitizadores, stress e `git diff --check`.
+- Resultados: GCC e Clang compilaram sem warnings; teste específico, suíte normal, stress, ASan/UBSan e variante `NDEBUG` passaram; o limiar exato não solicitou coleta, ultrapassagens sucessivas dobraram o limite, falha real de `VirtualAlloc()` preservou o limite anterior e shutdown restaurou a configuração padrão; Dr. Memory não foi executado porque permanece retirado por incompatibilidade com o Windows atual.
+- Erros da IA ou sugestões rejeitadas: nenhum identificado.
+- Pendências e próximo passo: revisar o diff final e criar o Commit 13 somente após autorização explícita; depois iniciar o conjunto de raízes explícitas do Commit 14.
+
+## 2026-06-21 17:24 — Criação do Commit 13
+
+- Prompt/objetivo: criar o commit da pressão de memória com a mensagem sugerida.
+- Fase do PLAN.md: Fase 2 — Heap gerenciado e API mínima; conclusão do Commit 13.
+- Arquivos examinados: diff completo, estado Git, histórico recente, artefatos de build e limites de linhas.
+- Alterações realizadas: revisão final e preparação do commit `feat(gc): implementa pressão de memória configurável`.
+- Decisões e justificativas: o staging será limitado à configuração, API, estado, testes e documentação pertencentes à política de pressão de memória.
+- Riscos ou erros procurados: arquivos fora do escopo, staging incompleto, whitespace inválido, artefatos de build e excesso de linhas.
+- Testes executados: `git diff --check`, inspeção do diff e confirmação da suíte já executada sobre o mesmo código.
+- Resultados: revisão aprovada; árvore sem artefatos e alterações dentro dos limites definidos pelo projeto.
+- Erros da IA ou sugestões rejeitadas: nenhum identificado.
+- Pendências e próximo passo: criar o Commit 13 e, após nova solicitação, iniciar o Commit 14.

@@ -86,13 +86,14 @@ projeto, além de símbolos, otimização desativada e frame pointers preservado
 
 ## Estado atual
 
-O repositório está na Fase 2, Commit 12, definida em `PLAN.md`. Em builds de
-depuração, `gc_malloc()` protege os limites lógicos com canários. A API
-`gc_get_stats()` informa bytes solicitados, reservados, vivos e coletados.
-Os bytes coletados representam memória recuperada por coleta e permanecem
-zerados enquanto o sweep ainda não estiver implementado.
+O repositório está na Fase 2, Commit 13, definida em `PLAN.md`. O coletor usa
+um limite flexível padrão de 64 MiB sobre os bytes reservados. Após `gc_init()`,
+`gc_set_memory_limit()` permite configurar esse limiar. Quando uma alocação o
+ultrapassa, `gc_malloc()` registra uma solicitação de coleta e, enquanto o
+mark-sweep ainda não existe, amplia o limite geometricamente somente após a
+alocação Win32 ter sucesso.
 
-O próximo passo é o Commit 13: implementar pressão de memória configurável.
+O próximo passo é o Commit 14: criar o conjunto de raízes explícitas.
 
 ## Documentação do desenvolvimento
 

@@ -9,6 +9,7 @@
 #include <windows.h>
 
 #include "allocator.h"
+#include "gc_config.h"
 #include "gc.h"
 #include "gc_internal.h"
 
@@ -20,6 +21,8 @@ typedef struct {
     uintptr_t stack_low;
     uintptr_t stack_high;
     size_t page_size;
+    size_t memory_limit;
+    size_t collection_request_count;
     size_t allocation_count;
     GCAllocation *allocations;
     IntervalNode *allocation_tree;
@@ -32,6 +35,8 @@ static GCState gc_state = {
     0,
     (uintptr_t)0,
     (uintptr_t)0,
+    0,
+    GC_DEFAULT_MEMORY_LIMIT,
     0,
     0,
     NULL,
@@ -48,6 +53,47 @@ _Static_assert(offsetof(GCAllocation, interval) == 0,
 static bool gc_is_owner_thread(void)
 {
     return gc_state.owner_thread_id == GetCurrentThreadId();
+}
+
+static size_t gc_grow_memory_limit(size_t required)
+{
+    size_t limit = gc_state.memory_limit;
+
+    while (limit < required) {
+        if (limit > SIZE_MAX / (size_t)2) {
+            return required;
+        }
+        limit *= (size_t)2;
+    }
+    return limit;
+}
+
+static void gc_request_collection(void)
+{
+    if (gc_state.collection_request_count < SIZE_MAX) {
+        ++gc_state.collection_request_count;
+    }
+}
+
+static bool gc_prepare_memory_pressure(size_t reserved,
+                                       size_t *next_limit)
+{
+    size_t required;
+
+    if (next_limit == NULL
+        || gc_state.stats.bytes_reserved > SIZE_MAX - reserved) {
+        return false;
+    }
+
+    required = gc_state.stats.bytes_reserved + reserved;
+    *next_limit = gc_state.memory_limit;
+    if (required <= gc_state.memory_limit) {
+        return true;
+    }
+
+    gc_request_collection();
+    *next_limit = gc_grow_memory_limit(required);
+    return true;
 }
 
 int gc_init(void)
@@ -83,6 +129,7 @@ int gc_init(void)
 void *gc_malloc(size_t size)
 {
     GCAllocation *allocation;
+    size_t next_limit;
     size_t reserved;
 
     if (!gc_state.initialized) {
@@ -100,7 +147,7 @@ void *gc_malloc(size_t size)
     if (!gc_allocator_reservation_size(size, gc_state.page_size, &reserved)
         || gc_state.stats.bytes_requested > SIZE_MAX - size
         || gc_state.stats.bytes_live > SIZE_MAX - size
-        || gc_state.stats.bytes_reserved > SIZE_MAX - reserved) {
+        || !gc_prepare_memory_pressure(reserved, &next_limit)) {
         gc_state.status = GC_STATUS_SIZE_OVERFLOW;
         return NULL;
     }
@@ -123,8 +170,29 @@ void *gc_malloc(size_t size)
     gc_state.stats.bytes_requested += size;
     gc_state.stats.bytes_live += size;
     gc_state.stats.bytes_reserved += reserved;
+    gc_state.memory_limit = next_limit;
     gc_state.status = GC_STATUS_OK;
     return allocation->memory;
+}
+
+int gc_set_memory_limit(size_t bytes)
+{
+    if (!gc_state.initialized) {
+        gc_state.status = GC_STATUS_NOT_INITIALIZED;
+        return GC_FAILURE;
+    }
+    if (!gc_is_owner_thread()) {
+        gc_state.status = GC_STATUS_WRONG_THREAD;
+        return GC_FAILURE;
+    }
+    if (bytes == 0) {
+        gc_state.status = GC_STATUS_INVALID_ARGUMENT;
+        return GC_FAILURE;
+    }
+
+    gc_state.memory_limit = bytes;
+    gc_state.status = GC_STATUS_OK;
+    return GC_SUCCESS;
 }
 
 int gc_get_stats(GCStats *out)
@@ -168,6 +236,8 @@ void gc_shutdown(void)
     gc_state.stack_low = (uintptr_t)0;
     gc_state.stack_high = (uintptr_t)0;
     gc_state.page_size = 0;
+    gc_state.memory_limit = GC_DEFAULT_MEMORY_LIMIT;
+    gc_state.collection_request_count = 0;
     gc_state.allocation_count = 0;
     gc_state.allocations = NULL;
     gc_state.allocation_tree = NULL;
@@ -217,6 +287,16 @@ bool gc_internal_get_stack_limits(uintptr_t *low, uintptr_t *high)
 size_t gc_internal_allocation_count(void)
 {
     return gc_state.allocation_count;
+}
+
+size_t gc_internal_memory_limit(void)
+{
+    return gc_state.memory_limit;
+}
+
+size_t gc_internal_collection_request_count(void)
+{
+    return gc_state.collection_request_count;
 }
 
 bool gc_internal_get_allocation_info(const void *address,
