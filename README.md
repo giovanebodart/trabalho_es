@@ -86,13 +86,11 @@ projeto, além de símbolos, otimização desativada e frame pointers preservado
 
 ## Estado atual
 
-O repositório está na Fase 2, Commit 10, definida em `PLAN.md`. `gc_init()`
-captura os limites da pilha da thread atual e cria o estado interno do coletor;
-chamadas repetidas ou feitas por outra thread são detectáveis por
-`gc_get_status()`.
+O repositório está na Fase 2, Commit 11, definida em `PLAN.md`. `gc_malloc()`
+reserva uma região Win32 por objeto, arredonda a reserva para páginas e
+registra o intervalo lógico do objeto na árvore AVL.
 
-O próximo passo é o Commit 11: implementar o protótipo de alocação com
-`VirtualAlloc()`.
+O próximo passo é o Commit 12: adicionar canários e estatísticas básicas.
 
 ## Documentação do desenvolvimento
 

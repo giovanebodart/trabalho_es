@@ -43,14 +43,19 @@ $(SANITIZE_DIR)/test_interval_tree$(EXEEXT): tests/test_interval_tree.c \
 	$(SAN_CC) $(SAN_FLAGS) -Iinclude -Itests tests/test_interval_tree.c \
 		src/interval_tree.c -o $@
 
-$(BUILD_DIR)/test_gc$(EXEEXT): tests/test_gc.c src/gc.c include/gc.h \
-		src/gc_internal.h tests/test.h | $(BUILD_DIR)
-	$(CC) $(CFLAGS) -Iinclude -Isrc -Itests tests/test_gc.c src/gc.c -o $@
+GC_SOURCES := src/gc.c src/allocator.c src/interval_tree.c
+GC_HEADERS := include/gc.h include/interval_tree.h src/allocator.h \
+		src/gc_internal.h
 
-$(SANITIZE_DIR)/test_gc$(EXEEXT): tests/test_gc.c src/gc.c include/gc.h \
-		src/gc_internal.h tests/test.h | $(SANITIZE_DIR)
+$(BUILD_DIR)/test_gc$(EXEEXT): tests/test_gc.c $(GC_SOURCES) $(GC_HEADERS) \
+		tests/test.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -Iinclude -Isrc -Itests tests/test_gc.c \
+		$(GC_SOURCES) -o $@
+
+$(SANITIZE_DIR)/test_gc$(EXEEXT): tests/test_gc.c $(GC_SOURCES) $(GC_HEADERS) \
+		tests/test.h | $(SANITIZE_DIR)
 	$(SAN_CC) $(SAN_FLAGS) -Iinclude -Isrc -Itests tests/test_gc.c \
-		src/gc.c -o $@
+		$(GC_SOURCES) -o $@
 
 test: $(TEST_BINS)
 	$(BUILD_DIR)/test_assertions$(EXEEXT)

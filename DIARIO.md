@@ -210,3 +210,16 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: visualização e script compilaram sem warnings; todas as execuções mantiveram as invariantes; suíte normal, stress e ASan/UBSan passaram; nenhuma entrada de intervalo ou endereço é solicitada ao usuário.
 - Erros da IA ou sugestões rejeitadas: o primeiro comando combinado de sanitização foi rejeitado pelo parser do PowerShell por causa da vírgula da flag e foi repetido com argumentos corretamente delimitados; nenhum código chegou a executar nessa tentativa.
 - Pendências e próximo passo: revisar o diff, criar um commit complementar somente após autorização explícita e então retomar o Commit 11.
+
+## 2026-06-21 02:05 — Protótipo de alocação com VirtualAlloc
+
+- Prompt/objetivo: prosseguir para o Commit 11 da Fase 2.
+- Fase do PLAN.md: Fase 2 — Heap gerenciado e API mínima; Commit 11.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, API e estado do coletor, árvore de intervalos, testes, Makefile, README e histórico Git.
+- Alterações realizadas: implementação de `gc_malloc()`, arredondamento para páginas, mapeamento Win32 por objeto, metadados externos, registro na árvore, liberação no shutdown, consultas internas para teste e cobertura de falhas.
+- Decisões e justificativas: a região visível ao usuário vem de `VirtualAlloc()`; metadados usam `malloc()` interno para evitar recursão; a árvore contém somente o intervalo solicitado, excluindo a folga até a página; uma lista separada permite liberar todos os mapeamentos sem percorrer e modificar a árvore.
+- Riscos ou erros procurados: overflow no arredondamento ou limite final, tamanho zero, uso antes de `gc_init()`, falha de metadados ou `VirtualAlloc()`, reconhecimento da folga de página como objeto, sobreposição, vazamento e estado residual após shutdown.
+- Testes executados: `mingw32-make clean`, `mingw32-make all`, teste específico `build\test_gc.exe`, `mingw32-make test`, `mingw32-make sanitize`, `mingw32-make stress`, inspeção das importações Win32 com `objdump`, `VirtualQuery()` após shutdown e `git diff --check`.
+- Resultados: compilação GCC e Clang sem warnings; testes normais, stress e ASan/UBSan passaram; reservas de 17 bytes e página+1 foram arredondadas para uma e duas páginas; memória nova estava zerada e gravável; ponteiros interiores foram localizados, a folga de página foi rejeitada; overflow e falha real de `VirtualAlloc()` retornaram estados controlados; os mapeamentos ficaram `MEM_FREE` após shutdown.
+- Erros da IA ou sugestões rejeitadas: nenhum identificado.
+- Pendências e próximo passo: revisar o diff, criar o Commit 11 somente após autorização explícita e então adicionar canários e estatísticas básicas no Commit 12.
