@@ -72,6 +72,18 @@ Esse alvo requer os pacotes `mingw-w64-clang-x86_64-clang` e
 padrão, o `Makefile` procura essa cadeia em `C:/msys64/clang64`; outro caminho
 pode ser informado com `SAN_ROOT`.
 
+## Visualizador da árvore
+
+O menu interativo gera todos os intervalos e endereços automaticamente:
+
+```powershell
+.\scripts\run_tree_visualizer.ps1
+```
+
+Use `-Demo` para executar uma sequência automática ou `-BuildOnly` para apenas
+compilar. O script usa GCC em modo debug com as mesmas flags estritas do
+projeto, além de símbolos, otimização desativada e frame pointers preservados.
+
 ## Estado atual
 
 O repositório está na Fase 2, Commit 10, definida em `PLAN.md`. `gc_init()`

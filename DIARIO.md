@@ -184,3 +184,29 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: compilação GCC e Clang sem warnings; testes normais, stress e ASan/UBSan passaram; o executável foi confirmado como PE x86-64 e importa as APIs Win32 esperadas; limites válidos contiveram uma variável local; inicialização duplicada, argumento inválido, shutdown sem inicialização e shutdown por outra thread foram detectados; o estado e os limites foram zerados no encerramento.
 - Erros da IA ou sugestões rejeitadas: nenhum identificado.
 - Pendências e próximo passo: revisar o diff, criar o Commit 10 somente após autorização explícita e então implementar o protótipo de alocação com `VirtualAlloc()` no Commit 11.
+
+## 2026-06-21 01:10 — Estudo de visualização no terminal
+
+- Prompt/objetivo: avaliar uma maneira visual de acompanhar o comportamento da árvore e do coletor pelo terminal.
+- Fase do PLAN.md: análise complementar após o Commit 10, sem iniciar o Commit 11.
+- Arquivos examinados: APIs públicas e internas atuais da árvore de intervalos e do estado do coletor, estado e histórico Git.
+- Alterações realizadas: nenhuma alteração de código; definição preliminar de uma visualização ASCII de snapshots e eventos de depuração.
+- Decisões e justificativas: a visualização deve ficar em módulo de diagnóstico separado, receber um `FILE *` e não alterar a árvore nem o coletor; snapshots da árvore devem mostrar intervalo, altura, fator AVL e `max_end`; snapshots do coletor devem mostrar estado, pilha e, quando existirem, objetos, marcação e gerações; cores e animação devem ser opcionais para preservar logs reproduzíveis.
+- Riscos ou erros procurados: poluir a API pública, modificar estado durante a inspeção, depender obrigatoriamente de sequências ANSI, usar recursão sobre estruturas potencialmente grandes e misturar instrumentação com o caminho de produção.
+- Testes executados: inspeção estática das interfaces atuais; nenhum build foi necessário porque não houve alteração de código.
+- Resultados: a visualização é viável no terminal e pode ser adicionada como ferramenta de depuração independente, começando pela árvore e evoluindo junto com o coletor.
+- Erros da IA ou sugestões rejeitadas: nenhum identificado.
+- Pendências e próximo passo: decidir se a ferramenta ASCII será implementada como commit complementar antes do Commit 11 ou após existir a primeira alocação gerenciada.
+
+## 2026-06-21 01:21 — Pedido extra: visualizador interativo da árvore
+
+- Prompt/objetivo: criar uma visualização puramente da árvore, com menu interativo e valores gerados automaticamente, além de script PowerShell para compilar e executar em debug.
+- Fase do PLAN.md: marco complementar entre os Commits 10 e 11, sem alterar o coletor.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, API e implementação da árvore, diretórios `examples/` e `scripts/`, build e estado Git.
+- Alterações realizadas: criação do visualizador ASCII, menu por teclas para inserção, remoção, busca, nova árvore, animação e validação, modo automático `--demo`, script PowerShell com `-Demo` e `-BuildOnly` e documentação de uso.
+- Decisões e justificativas: intervalos são gerados dentro de faixas independentes para evitar sobreposição por construção; a ferramenta reutiliza somente a API pública da árvore; o modo automático permite validação reproduzível do executável sem entrada interativa; a compilação usa C11 estrito, `-g3`, `-O0` e frame pointers.
+- Riscos ou erros procurados: reutilização de nó ainda conectado, sobreposição aleatória, remoção de identidade incorreta, invariantes AVL após operações mistas, warnings, dependência de entrada numérica e artefatos fora de `build/`.
+- Testes executados: script com `-BuildOnly` e `-Demo`, 25 execuções automáticas, compilação e execução com ASan/UBSan, `mingw32-make clean`, `all`, `test`, `sanitize`, `stress` e `git diff --check`.
+- Resultados: visualização e script compilaram sem warnings; todas as execuções mantiveram as invariantes; suíte normal, stress e ASan/UBSan passaram; nenhuma entrada de intervalo ou endereço é solicitada ao usuário.
+- Erros da IA ou sugestões rejeitadas: o primeiro comando combinado de sanitização foi rejeitado pelo parser do PowerShell por causa da vírgula da flag e foi repetido com argumentos corretamente delimitados; nenhum código chegou a executar nessa tentativa.
+- Pendências e próximo passo: revisar o diff, criar um commit complementar somente após autorização explícita e então retomar o Commit 11.
