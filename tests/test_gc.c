@@ -92,6 +92,7 @@ static int test_stack_limits_and_thread_ownership(void)
 static int test_virtual_alloc_objects(void)
 {
     SYSTEM_INFO system_info;
+    GCStats stats;
     unsigned char *small;
     unsigned char *large;
     size_t requested;
@@ -105,7 +106,8 @@ static int test_virtual_alloc_objects(void)
     TEST_ASSERT_EQ_INT(GC_STATUS_INVALID_ARGUMENT, gc_get_status());
     TEST_ASSERT(gc_malloc(SIZE_MAX) == NULL);
     TEST_ASSERT_EQ_INT(GC_STATUS_SIZE_OVERFLOW, gc_get_status());
-    impossible_size = SIZE_MAX - ((size_t)system_info.dwPageSize - (size_t)1);
+    impossible_size = SIZE_MAX
+                      - (size_t)system_info.dwPageSize * (size_t)2;
     TEST_ASSERT(gc_malloc(impossible_size) == NULL);
     TEST_ASSERT_EQ_INT(GC_STATUS_OUT_OF_MEMORY, gc_get_status());
 
@@ -113,7 +115,15 @@ static int test_virtual_alloc_objects(void)
     large = gc_malloc((size_t)system_info.dwPageSize + (size_t)1);
     TEST_ASSERT(small != NULL);
     TEST_ASSERT(large != NULL);
+    TEST_ASSERT((uintptr_t)small % _Alignof(long double) == (uintptr_t)0);
     TEST_ASSERT(gc_internal_allocation_count() == (size_t)2);
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_get_stats(&stats));
+    TEST_ASSERT(stats.bytes_requested
+                == (size_t)system_info.dwPageSize + (size_t)18);
+    TEST_ASSERT(stats.bytes_live == stats.bytes_requested);
+    TEST_ASSERT(stats.bytes_reserved
+                == (size_t)system_info.dwPageSize * (size_t)3);
+    TEST_ASSERT(stats.bytes_collected == (size_t)0);
     TEST_ASSERT(gc_internal_get_allocation_info(small + 16,
                                                 &requested, &reserved));
     TEST_ASSERT(requested == (size_t)17);
@@ -138,14 +148,44 @@ static int test_virtual_alloc_objects(void)
     return EXIT_SUCCESS;
 }
 
+static int test_debug_canaries(void)
+{
+    unsigned char *object;
+
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_init());
+    object = gc_malloc(32);
+    TEST_ASSERT(object != NULL);
+    TEST_ASSERT(gc_internal_validate_canaries(object));
+
+    TEST_ASSERT(gc_internal_corrupt_canary(object, false));
+    TEST_ASSERT(!gc_internal_validate_canaries(object));
+    TEST_ASSERT_EQ_INT(GC_STATUS_CORRUPTED_MEMORY, gc_get_status());
+    TEST_ASSERT(gc_internal_corrupt_canary(object, false));
+    TEST_ASSERT(gc_internal_validate_canaries(object));
+
+    TEST_ASSERT(gc_internal_corrupt_canary(object, true));
+    TEST_ASSERT(!gc_internal_validate_canaries(object));
+    gc_shutdown();
+    TEST_ASSERT_EQ_INT(GC_STATUS_CORRUPTED_MEMORY, gc_get_status());
+    return EXIT_SUCCESS;
+}
+
 int main(void)
 {
+    GCStats stats = {1, 1, 1, 1};
+
     TEST_ASSERT(gc_malloc(8) == NULL);
+    TEST_ASSERT_EQ_INT(GC_STATUS_NOT_INITIALIZED, gc_get_status());
+    TEST_ASSERT_EQ_INT(GC_FAILURE, gc_get_stats(NULL));
+    TEST_ASSERT_EQ_INT(GC_STATUS_INVALID_ARGUMENT, gc_get_status());
+    TEST_ASSERT_EQ_INT(GC_FAILURE, gc_get_stats(&stats));
+    TEST_ASSERT(stats.bytes_requested == (size_t)0);
     TEST_ASSERT_EQ_INT(GC_STATUS_NOT_INITIALIZED, gc_get_status());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_invalid_state_transitions());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS,
                        test_stack_limits_and_thread_ownership());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_virtual_alloc_objects());
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_debug_canaries());
     puts("test_gc: ok");
     return EXIT_SUCCESS;
 }

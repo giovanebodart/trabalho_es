@@ -23,6 +23,7 @@ typedef struct {
     size_t allocation_count;
     GCAllocation *allocations;
     IntervalNode *allocation_tree;
+    GCStats stats;
     GCStatus status;
 } GCState;
 
@@ -35,6 +36,7 @@ static GCState gc_state = {
     0,
     NULL,
     NULL,
+    {0, 0, 0, 0},
     GC_STATUS_NOT_INITIALIZED
 };
 
@@ -95,7 +97,10 @@ void *gc_malloc(size_t size)
         gc_state.status = GC_STATUS_INVALID_ARGUMENT;
         return NULL;
     }
-    if (!gc_allocator_round_size(size, gc_state.page_size, &reserved)) {
+    if (!gc_allocator_reservation_size(size, gc_state.page_size, &reserved)
+        || gc_state.stats.bytes_requested > SIZE_MAX - size
+        || gc_state.stats.bytes_live > SIZE_MAX - size
+        || gc_state.stats.bytes_reserved > SIZE_MAX - reserved) {
         gc_state.status = GC_STATUS_SIZE_OVERFLOW;
         return NULL;
     }
@@ -115,12 +120,38 @@ void *gc_malloc(size_t size)
     allocation->next = gc_state.allocations;
     gc_state.allocations = allocation;
     ++gc_state.allocation_count;
+    gc_state.stats.bytes_requested += size;
+    gc_state.stats.bytes_live += size;
+    gc_state.stats.bytes_reserved += reserved;
     gc_state.status = GC_STATUS_OK;
     return allocation->memory;
 }
 
+int gc_get_stats(GCStats *out)
+{
+    if (out == NULL) {
+        gc_state.status = GC_STATUS_INVALID_ARGUMENT;
+        return GC_FAILURE;
+    }
+    *out = (GCStats){0, 0, 0, 0};
+    if (!gc_state.initialized) {
+        gc_state.status = GC_STATUS_NOT_INITIALIZED;
+        return GC_FAILURE;
+    }
+    if (!gc_is_owner_thread()) {
+        gc_state.status = GC_STATUS_WRONG_THREAD;
+        return GC_FAILURE;
+    }
+
+    *out = gc_state.stats;
+    gc_state.status = GC_STATUS_OK;
+    return GC_SUCCESS;
+}
+
 void gc_shutdown(void)
 {
+    bool canaries_valid;
+
     if (!gc_state.initialized) {
         gc_state.status = GC_STATUS_NOT_INITIALIZED;
         return;
@@ -130,6 +161,7 @@ void gc_shutdown(void)
         return;
     }
 
+    canaries_valid = gc_allocator_validate_all(gc_state.allocations);
     gc_allocator_destroy_all(gc_state.allocations);
     gc_state.initialized = false;
     gc_state.owner_thread_id = 0;
@@ -139,7 +171,10 @@ void gc_shutdown(void)
     gc_state.allocation_count = 0;
     gc_state.allocations = NULL;
     gc_state.allocation_tree = NULL;
-    gc_state.status = GC_STATUS_OK;
+    gc_state.stats = (GCStats){0, 0, 0, 0};
+    gc_state.status = canaries_valid
+                      ? GC_STATUS_OK
+                      : GC_STATUS_CORRUPTED_MEMORY;
 }
 
 bool gc_is_initialized(void)
@@ -212,4 +247,39 @@ bool gc_internal_get_allocation_info(const void *address,
     *requested = allocation->requested_size;
     *reserved = allocation->reserved_size;
     return true;
+}
+
+static GCAllocation *gc_find_allocation(const void *address)
+{
+    IntervalNode *interval;
+
+    if (!gc_state.initialized || !gc_is_owner_thread()
+        || address == NULL) {
+        return NULL;
+    }
+    interval = interval_tree_find(gc_state.allocation_tree,
+                                  (uintptr_t)address);
+    return (GCAllocation *)interval;
+}
+
+bool gc_internal_validate_canaries(const void *address)
+{
+    GCAllocation *allocation = gc_find_allocation(address);
+
+    if (allocation == NULL) {
+        return false;
+    }
+    if (!gc_allocator_validate_canaries(allocation)) {
+        gc_state.status = GC_STATUS_CORRUPTED_MEMORY;
+        return false;
+    }
+    gc_state.status = GC_STATUS_OK;
+    return true;
+}
+
+bool gc_internal_corrupt_canary(const void *address, bool after_object)
+{
+    GCAllocation *allocation = gc_find_allocation(address);
+
+    return gc_allocator_corrupt_canary(allocation, after_object);
 }

@@ -223,3 +223,42 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: compilação GCC e Clang sem warnings; testes normais, stress e ASan/UBSan passaram; reservas de 17 bytes e página+1 foram arredondadas para uma e duas páginas; memória nova estava zerada e gravável; ponteiros interiores foram localizados, a folga de página foi rejeitada; overflow e falha real de `VirtualAlloc()` retornaram estados controlados; os mapeamentos ficaram `MEM_FREE` após shutdown.
 - Erros da IA ou sugestões rejeitadas: nenhum identificado.
 - Pendências e próximo passo: revisar o diff, criar o Commit 11 somente após autorização explícita e então adicionar canários e estatísticas básicas no Commit 12.
+
+## 2026-06-21 17:00 — Canários de depuração e estatísticas básicas
+
+- Prompt/objetivo: confirmar o Commit 11 criado manualmente e prosseguir para o Commit 12 da Fase 2.
+- Fase do PLAN.md: Fase 2 — Heap gerenciado e API mínima; Commit 12.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, `Makefile`, API pública e interna do coletor, alocador, árvore de intervalos, testes e histórico Git.
+- Alterações realizadas: adição de `GCStats` e `gc_get_stats()`, contadores de bytes solicitados, reservados, vivos e coletados, canários anterior e posterior em builds sem `NDEBUG`, validação no encerramento, status de corrupção e testes de corrupção intencional.
+- Decisões e justificativas: o ponteiro do usuário é deslocado por `sizeof(max_align_t)` para preservar alinhamento; o canário anterior fica imediatamente antes do objeto e o posterior imediatamente depois; ambos permanecem fora do intervalo lógico registrado na AVL; bytes solicitados contam alocações bem-sucedidas, bytes reservados e vivos descrevem o estado atual e bytes coletados permanecem zero até o sweep; o shutdown libera os mapeamentos mesmo quando detecta corrupção e então preserva `GC_STATUS_CORRUPTED_MEMORY`.
+- Riscos ou erros procurados: perda de alinhamento, canário colocado longe do limite lógico, overflow ao somar overhead e estatísticas, inclusão dos canários na busca por ponteiro interior, acesso desalinhado, corrupção não detectada, vazamento após diagnóstico, custo residual em build com `NDEBUG` e alteração indevida das invariantes AVL.
+- Testes executados: `mingw32-make clean`, `mingw32-make all`, teste específico `build\test_gc.exe`, `mingw32-make test`, `mingw32-make sanitize`, `mingw32-make stress`, compilação isolada de `allocator.c` e `gc.c` com `-DNDEBUG` e flags estritas, além de `git diff --check`.
+- Resultados: GCC e Clang compilaram sem warnings; teste específico, suíte normal, stress e ASan/UBSan passaram; alinhamento de `max_align_t` foi preservado; corrupções intencionais nos dois canários foram detectadas; estatísticas refletiram duas alocações e mantiveram bytes coletados em zero; a variante `NDEBUG` compilou sem suporte ativo aos canários.
+- Erros da IA ou sugestões rejeitadas: a primeira tentativa de patch não encontrou o contexto do `README.md` por causa da codificação exibida pelo PowerShell e não alterou arquivos; uma verificação auxiliar de whitespace usou interpolação inválida antes de ser corrigida; nenhuma das tentativas modificou código.
+- Pendências e próximo passo: revisar o diff final, criar o Commit 12 somente após autorização explícita e então implementar pressão de memória configurável no Commit 13.
+
+## 2026-06-21 17:09 — Correção do diagnóstico de alinhamento
+
+- Prompt/objetivo: revisar e resolver os diagnósticos do editor que indicavam `identifier "max_align_t" is undefined` no alocador e no teste, registrando também os erros cometidos.
+- Fase do PLAN.md: Fase 2 — Heap gerenciado e API mínima; correção ainda pertencente ao Commit 12.
+- Arquivos examinados: capturas de tela fornecidas, `src/allocator.c`, `tests/test_gc.c`, cabeçalhos incluídos, `Makefile`, `.gitignore`, configuração local do editor, estado Git e compiladores GCC/Clang instalados.
+- Alterações realizadas: substituição da dependência direta de `max_align_t` por `GCNaturalAlignment`, uma união interna composta por `long double`, `long long` e ponteiro; atualização do teste para verificar alinhamento por `_Alignof(long double)`.
+- Decisões e justificativas: GCC 15.2.0 e Clang 21.1.8 já compilavam o código C11, portanto o aviso era uma divergência do IntelliSense e não uma falha do compilador; ainda assim, a representação interna remove a dependência que o editor não reconhecia, mantém o prefixo com tamanho múltiplo de seu alinhamento e atende à ABI Windows x86-64 suportada pelo projeto.
+- Riscos ou erros procurados: redução da garantia de alinhamento, alteração do posicionamento dos canários, overhead em `NDEBUG`, warning de tipo não utilizado, overflow no layout, incompatibilidade entre GCC, Clang e o analisador do editor.
+- Testes executados: busca por referências restantes a `max_align_t`, `mingw32-make clean`, `mingw32-make all`, teste específico `build\test_gc.exe`, `mingw32-make test`, `mingw32-make sanitize`, `mingw32-make stress`, compilação de `allocator.c` e `gc.c` com `-DNDEBUG` e flags estritas, e `git diff --check`.
+- Resultados: nenhuma referência de código a `max_align_t` permaneceu; GCC e Clang compilaram sem warnings; teste específico, suíte normal, stress e ASan/UBSan passaram; o alinhamento exigido e os canários permaneceram válidos.
+- Erros da IA ou sugestões rejeitadas: o uso inicial de `max_align_t`, embora válido para os compiladores do projeto, deixou diagnósticos falsos no IntelliSense e foi substituído por uma solução explícita para a plataforma; durante a investigação, um comando PowerShell com here-string foi formatado incorretamente e falhou antes de executar; uma consulta a `gcc -v` foi apresentada pelo PowerShell como `NativeCommandError` por usar a saída de diagnóstico, embora tenha retornado corretamente a versão e o alvo do compilador.
+- Pendências e próximo passo: executar a auditoria final do diff e criar o Commit 12 somente após autorização explícita; se o editor mantiver diagnósticos em cache, recarregar a janela ou reiniciar o banco do IntelliSense.
+
+## 2026-06-21 17:13 — Criação do Commit 12
+
+- Prompt/objetivo: criar o commit após a implementação, correção e validação dos canários e das estatísticas básicas.
+- Fase do PLAN.md: Fase 2 — Heap gerenciado e API mínima; conclusão do Commit 12.
+- Arquivos examinados: diff completo, staging, limites de linhas, estado Git e histórico recente.
+- Alterações realizadas: revisão final e criação do commit com a mensagem `feat(gc): adiciona canários e estatísticas básicas`.
+- Decisões e justificativas: foram incluídos somente os arquivos do objetivo lógico do Commit 12; a correção do diagnóstico de alinhamento pertence ao mesmo escopo por preservar o layout dos canários.
+- Riscos ou erros procurados: arquivos fora do escopo, whitespace inválido, artefatos de build, excesso de linhas e staging incompleto.
+- Testes executados: `git diff --cached --check`, inspeção do staging e confirmação dos testes já executados para o mesmo conteúdo.
+- Resultados: staging íntegro; 229 linhas de produção e 311 linhas totais antes deste registro; commit criado com sucesso e sem artefatos em `build/`.
+- Erros da IA ou sugestões rejeitadas: nenhum identificado nesta etapa.
+- Pendências e próximo passo: iniciar o Commit 13 somente após solicitação explícita.

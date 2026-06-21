@@ -9,5 +9,7 @@ size_t gc_internal_allocation_count(void);
 bool gc_internal_get_allocation_info(const void *address,
                                      size_t *requested,
                                      size_t *reserved);
+bool gc_internal_validate_canaries(const void *address);
+bool gc_internal_corrupt_canary(const void *address, bool after_object);
 
 #endif

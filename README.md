@@ -86,11 +86,13 @@ projeto, além de símbolos, otimização desativada e frame pointers preservado
 
 ## Estado atual
 
-O repositório está na Fase 2, Commit 11, definida em `PLAN.md`. `gc_malloc()`
-reserva uma região Win32 por objeto, arredonda a reserva para páginas e
-registra o intervalo lógico do objeto na árvore AVL.
+O repositório está na Fase 2, Commit 12, definida em `PLAN.md`. Em builds de
+depuração, `gc_malloc()` protege os limites lógicos com canários. A API
+`gc_get_stats()` informa bytes solicitados, reservados, vivos e coletados.
+Os bytes coletados representam memória recuperada por coleta e permanecem
+zerados enquanto o sweep ainda não estiver implementado.
 
-O próximo passo é o Commit 12: adicionar canários e estatísticas básicas.
+O próximo passo é o Commit 13: implementar pressão de memória configurável.
 
 ## Documentação do desenvolvimento
 
