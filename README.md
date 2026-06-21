@@ -74,12 +74,12 @@ pode ser informado com `SAN_ROOT`.
 
 ## Estado atual
 
-O repositório está na Fase 1, Commit 8, definida em `PLAN.md`. A árvore remove
-nós por endereço inicial, preserva a identidade dos metadados e se rebalanceia
-após remoções.
+O repositório está na Fase 1, Commit 9, definida em `PLAN.md`. Em builds sem
+`NDEBUG`, `interval_tree_validate()` verifica ordenação, ausência de
+sobreposição, alturas, balanceamento AVL e `max_end`.
 
-O próximo passo é o Commit 9: validar publicamente todas as invariantes da
-árvore.
+O próximo passo é o Commit 10: criar a inicialização e o encerramento do
+coletor.
 
 ## Documentação do desenvolvimento
 

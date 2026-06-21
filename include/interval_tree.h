@@ -42,4 +42,8 @@ IntervalNode *interval_tree_find_counted(IntervalNode *root,
                                          uintptr_t address,
                                          size_t *comparisons);
 
+#ifndef NDEBUG
+bool interval_tree_validate(const IntervalNode *root);
+#endif
+
 #endif

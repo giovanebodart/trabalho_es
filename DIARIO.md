@@ -132,3 +132,42 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: compilação sem warnings; testes normais e ASan/UBSan passaram; foram cobertos folha, nó com um filho, raiz com dois filhos e sucessor com filho direito, raiz única, endereço ausente, saída opcional e rebalanceamento com redução de `max_end`.
 - Erros da IA ou sugestões rejeitadas: nenhum identificado.
 - Pendências e próximo passo: revisar o diff, criar o Commit 8 após autorização explícita e então implementar o verificador público de invariantes do Commit 9.
+
+## 2026-06-20 21:23 — Verificação pública das invariantes AVL
+
+- Prompt/objetivo: prosseguir para o Commit 9 da Fase 1.
+- Fase do PLAN.md: Fase 1 — Árvore de intervalos; Commit 9.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, `Makefile`, cabeçalho, implementação e testes da árvore de intervalos, estado e histórico Git.
+- Alterações realizadas: adição de `interval_tree_validate()` para builds sem `NDEBUG`, testes de corrupção controlada e sequência pseudoaleatória determinística de inserções, buscas e remoções.
+- Decisões e justificativas: o verificador percorre a árvore em ordem, recalcula altura e `max_end` e não modifica os nós; a ordem crescente de inícios e o limite final do predecessor verificam simultaneamente a propriedade de busca e a ausência de sobreposição; a semente fixa torna o teste aleatório reproduzível.
+- Riscos ou erros procurados: intervalos inválidos ou sobrepostos, ordenação incorreta, altura armazenada divergente, fator AVL fora de `[-1, 1]`, `max_end` corrompido e falhas intermitentes em sequências mistas.
+- Testes executados: `mingw32-make clean`, `mingw32-make all`, teste específico `build\test_interval_tree.exe`, `mingw32-make test`, `mingw32-make sanitize`, `mingw32-make stress`, compilação isolada de `src\interval_tree.c` com `-DNDEBUG`, consulta da disponibilidade do Dr. Memory e `git diff --check`.
+- Resultados: compilação sem warnings; testes normais, stress e ASan/UBSan passaram; 2.048 operações pseudoaleatórias validaram a árvore após cada inserção ou remoção; corrupções de ordenação, sobreposição, altura, balanceamento e `max_end` foram detectadas; a compilação com `NDEBUG` passou sem código ou declaração residual do verificador; Dr. Memory não está instalado no ambiente.
+- Erros da IA ou sugestões rejeitadas: nenhum identificado.
+- Pendências e próximo passo: revisar o diff, criar o Commit 9 somente após autorização explícita e então iniciar a inicialização e o encerramento do coletor no Commit 10.
+
+## 2026-06-21 00:35 — Pedido extra: preparação do Dr. Memory
+
+- Prompt/objetivo: por pedido extra do desenvolvedor, instalar e validar antecipadamente o Dr. Memory para uso nas fases futuras do coletor.
+- Fase do PLAN.md: apoio ao Commit 9 e preparação para as validações dinâmicas dos commits posteriores.
+- Arquivos examinados: documentação e pacote oficiais do Dr. Memory, issues oficiais `DynamoRIO/drmemory#2538`, `DynamoRIO/drmemory#2539` e `DynamoRIO/dynamorio#6962`, ambiente do usuário, build e teste da árvore.
+- Alterações realizadas: remoção do ZIP incompleto deixado por uma interrupção, instalação limpa do Dr. Memory 2.6.0 em `C:\Users\giova\Tools\DrMemory-Windows-2.6.0` e configuração do frontend `bin64` no `PATH` do usuário.
+- Decisões e justificativas: o pacote oficial AMD64 foi validado por tamanho, estrutura ZIP e SHA-256 `07632AB77856579D06E30DE344C669E9BDCBDE9688B6EF43E84D31C39C6E46B2`; o frontend x86-64 foi escolhido por ser a plataforma exclusiva do projeto.
+- Riscos ou erros procurados: instalação parcial, ZIP corrompido, alteração indevida do repositório, frontend de arquitetura incorreta, falha do programa-alvo e incompatibilidade do instrumentador com Windows 11.
+- Testes executados: `drmemory.exe -version`, execução direta do teste da árvore compilado com símbolos e frame pointers, Dr. Memory normal, `-light`, modo `-leaks_only -no_count_leaks -no_track_allocs` e DynamoRIO puro.
+- Resultados: instalação e `PATH` estão íntegros; Dr. Memory informa versão 2.6.0; o teste passa diretamente e sob DynamoRIO puro, mas o cliente Dr. Memory não inicia em Windows 11 25H2 por `dbghelp.dll: library initializer failed`, defeito upstream aberto também reproduzido em Windows 11 24H2; portanto a ferramenta ainda não pode ser considerada funcional neste ambiente.
+- Erros da IA ou sugestões rejeitadas: a primeira tentativa interrompida deixou um ZIP sem diretório central e foi descartada; a configuração inicial apontou para `bin` e foi corrigida para `bin64`; não foi adotada substituição não suportada de DLLs do sistema.
+- Pendências e próximo passo: manter ASan/UBSan como validação dinâmica disponível; repetir o Dr. Memory quando houver correção upstream ou em uma máquina virtual Windows 10 compatível e somente então registrar uma execução bem-sucedida.
+
+## 2026-06-21 00:43 — Retirada do Dr. Memory
+
+- Prompt/objetivo: retirar o Dr. Memory do ambiente do projeto e criar o Commit 9.
+- Fase do PLAN.md: Fase 1 — Árvore de intervalos; conclusão do Commit 9.
+- Arquivos examinados: instalação em `C:\Users\giova\Tools`, `PATH` do usuário, diretórios de logs, referências no repositório, diff e estado Git.
+- Alterações realizadas: remoção completa do Dr. Memory 2.6.0, de seus logs e da entrada correspondente no `PATH`; nenhuma integração de código ou build precisou ser removida.
+- Decisões e justificativas: a ferramenta foi retirada porque o cliente não é compatível com o Windows 11 25H2 atual; o registro cronológico da tentativa foi preservado para manter rastreabilidade, enquanto ASan/UBSan continuam sendo as ferramentas dinâmicas efetivamente disponíveis.
+- Riscos ou erros procurados: remoção de diretório incorreto, permanência de binários ou logs, alteração indevida de outras entradas do `PATH` e referências técnicas que fizessem a build depender da ferramenta.
+- Testes executados: verificação dos caminhos antes e depois da remoção, busca por referências no repositório e validação final do Commit 9.
+- Resultados: instalação, logs e entrada de `PATH` removidos; o projeto nunca teve dependência de Dr. Memory e permanece funcional sem ele.
+- Erros da IA ou sugestões rejeitadas: nenhum identificado.
+- Pendências e próximo passo: criar o Commit 9 e então iniciar a inicialização e o encerramento do coletor no Commit 10.

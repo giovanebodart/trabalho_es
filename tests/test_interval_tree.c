@@ -658,6 +658,111 @@ static int test_remove_single_root(void)
     return EXIT_SUCCESS;
 }
 
+static int test_validator_detects_corruption(void)
+{
+    IntervalNode nodes[3];
+    IntervalNode unbalanced[3];
+    IntervalNode *root = NULL;
+
+    TEST_ASSERT(interval_tree_validate(NULL));
+    TEST_ASSERT(interval_node_init(&nodes[0], (uintptr_t)20, (uintptr_t)25));
+    TEST_ASSERT(interval_node_init(&nodes[1], (uintptr_t)10, (uintptr_t)15));
+    TEST_ASSERT(interval_node_init(&nodes[2], (uintptr_t)30, (uintptr_t)35));
+    TEST_ASSERT(interval_tree_insert(&root, &nodes[0]));
+    TEST_ASSERT(interval_tree_insert(&root, &nodes[1]));
+    TEST_ASSERT(interval_tree_insert(&root, &nodes[2]));
+    TEST_ASSERT(interval_tree_validate(root));
+
+    nodes[1].start = (uintptr_t)40;
+    nodes[1].end = (uintptr_t)45;
+    TEST_ASSERT(!interval_tree_validate(root));
+    nodes[1].start = (uintptr_t)10;
+    nodes[1].end = (uintptr_t)15;
+
+    nodes[1].end = (uintptr_t)22;
+    TEST_ASSERT(!interval_tree_validate(root));
+    nodes[1].end = (uintptr_t)15;
+
+    ++root->height;
+    TEST_ASSERT(!interval_tree_validate(root));
+    --root->height;
+
+    --root->max_end;
+    TEST_ASSERT(!interval_tree_validate(root));
+    ++root->max_end;
+    TEST_ASSERT(interval_tree_validate(root));
+
+    TEST_ASSERT(interval_node_init(&unbalanced[0],
+                                   (uintptr_t)30, (uintptr_t)35));
+    TEST_ASSERT(interval_node_init(&unbalanced[1],
+                                   (uintptr_t)20, (uintptr_t)25));
+    TEST_ASSERT(interval_node_init(&unbalanced[2],
+                                   (uintptr_t)10, (uintptr_t)15));
+    unbalanced[1].left = &unbalanced[2];
+    interval_node_update(&unbalanced[1]);
+    unbalanced[0].left = &unbalanced[1];
+    interval_node_update(&unbalanced[0]);
+    TEST_ASSERT(!interval_tree_validate(&unbalanced[0]));
+    return EXIT_SUCCESS;
+}
+
+static uint32_t next_random(uint32_t *state)
+{
+    *state = *state * UINT32_C(1664525) + UINT32_C(1013904223);
+    return *state;
+}
+
+static int test_randomized_operations(void)
+{
+    enum { NODE_COUNT = 64, OPERATION_COUNT = 2048 };
+    IntervalNode nodes[NODE_COUNT];
+    bool active[NODE_COUNT] = {false};
+    IntervalNode *root = NULL;
+    uint32_t random_state = UINT32_C(0x5eed1234);
+    size_t operation;
+    size_t index;
+
+    for (index = 0; index < NODE_COUNT; ++index) {
+        const uintptr_t start = (uintptr_t)(index * (size_t)16 + (size_t)8);
+
+        TEST_ASSERT(interval_node_init(&nodes[index], start,
+                                       start + (uintptr_t)8));
+    }
+
+    for (operation = 0; operation < OPERATION_COUNT; ++operation) {
+        IntervalNode *removed = NULL;
+        IntervalNode *found;
+        uintptr_t address;
+
+        index = (size_t)(next_random(&random_state) % NODE_COUNT);
+        if (active[index]) {
+            TEST_ASSERT(interval_tree_remove(&root, nodes[index].start,
+                                             &removed));
+            TEST_ASSERT(removed == &nodes[index]);
+            active[index] = false;
+        } else {
+            TEST_ASSERT(interval_tree_insert(&root, &nodes[index]));
+            active[index] = true;
+        }
+        TEST_ASSERT(interval_tree_validate(root));
+
+        index = (size_t)(next_random(&random_state) % NODE_COUNT);
+        address = nodes[index].start
+                  + (uintptr_t)(next_random(&random_state) % UINT32_C(8));
+        found = interval_tree_find(root, address);
+        TEST_ASSERT(found == (active[index] ? &nodes[index] : NULL));
+    }
+
+    for (index = 0; index < NODE_COUNT; ++index) {
+        if (active[index]) {
+            TEST_ASSERT(interval_tree_remove(&root, nodes[index].start, NULL));
+            TEST_ASSERT(interval_tree_validate(root));
+        }
+    }
+    TEST_ASSERT(root == NULL);
+    return EXIT_SUCCESS;
+}
+
 int main(void)
 {
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_rejects_invalid_intervals());
@@ -683,6 +788,8 @@ int main(void)
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS,
                        test_remove_rebalances_and_handles_missing());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_remove_single_root());
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_validator_detects_corruption());
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_randomized_operations());
     puts("test_interval_tree: ok");
     return EXIT_SUCCESS;
 }

@@ -291,3 +291,69 @@ IntervalNode *interval_tree_find(IntervalNode *root, uintptr_t address)
 {
     return interval_tree_find_counted(root, address, NULL);
 }
+
+#ifndef NDEBUG
+typedef struct {
+    bool has_previous;
+    uintptr_t previous_start;
+    uintptr_t previous_end;
+} IntervalValidationState;
+
+static bool interval_tree_validate_node(const IntervalNode *node,
+                                        IntervalValidationState *state,
+                                        int *height,
+                                        uintptr_t *max_end)
+{
+    int left_height;
+    int right_height;
+    uintptr_t left_max_end;
+    uintptr_t right_max_end;
+    uintptr_t expected_max_end;
+
+    if (node == NULL) {
+        *height = 0;
+        *max_end = (uintptr_t)0;
+        return true;
+    }
+
+    if (!interval_tree_validate_node(node->left, state, &left_height,
+                                     &left_max_end)
+        || node->start >= node->end
+        || (state->has_previous
+            && (state->previous_start >= node->start
+                || state->previous_end > node->start))) {
+        return false;
+    }
+
+    state->has_previous = true;
+    state->previous_start = node->start;
+    state->previous_end = node->end;
+
+    if (!interval_tree_validate_node(node->right, state, &right_height,
+                                     &right_max_end)) {
+        return false;
+    }
+
+    *height = 1 + max_height(left_height, right_height);
+    expected_max_end = max_address(node->end,
+                                   max_address(left_max_end, right_max_end));
+    if (node->height != *height
+        || left_height - right_height < -1
+        || left_height - right_height > 1
+        || node->max_end != expected_max_end) {
+        return false;
+    }
+
+    *max_end = expected_max_end;
+    return true;
+}
+
+bool interval_tree_validate(const IntervalNode *root)
+{
+    IntervalValidationState state = {false, (uintptr_t)0, (uintptr_t)0};
+    int height;
+    uintptr_t max_end;
+
+    return interval_tree_validate_node(root, &state, &height, &max_end);
+}
+#endif
