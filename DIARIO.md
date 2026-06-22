@@ -353,3 +353,29 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: revisão aprovada e autorização explícita recebida para criar o Commit 15.
 - Erros da IA ou sugestões rejeitadas: nenhum identificado nesta etapa.
 - Pendências e próximo passo: criar o commit e iniciar a varredura conservadora do Commit 16 somente após nova solicitação.
+
+## 2026-06-22 11:19 — Varredura conservadora de objetos
+
+- Prompt/objetivo: prosseguir para o Commit 16 e localizar referências gerenciadas no conteúdo dos objetos.
+- Fase do PLAN.md: Fase 3 — Mark-sweep com raízes explícitas; Commit 16.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, fila de marcação, metadados, árvore de intervalos, testes, Makefile, estado e histórico Git.
+- Alterações realizadas: adição da varredura byte a byte ao módulo `marker`, leitura com `memcpy()`, consulta na AVL, enfileiramento de objetos encontrados e testes com ponteiros desalinhados, interiores, ciclos, limites e valores externos.
+- Decisões e justificativas: todas as posições que comportam um `uintptr_t` são examinadas para alcançar ponteiros em offsets não alinhados; somente o tamanho lógico solicitado é lido, excluindo canários e folga de página; resultados já marcados são ignorados pela fila e falhas de crescimento são propagadas sem recursão.
+- Riscos ou erros procurados: acesso desalinhado, underflow em objetos menores que uma palavra, leitura além do limite lógico, tratamento inclusivo incorreto do fim do intervalo, perda de ponteiros interiores, falsos positivos conservadores, reinserção por ciclos, overflow do deslocamento e falha de `realloc()`.
+- Testes executados: `mingw32-make clean`, `mingw32-make all`, teste específico `build\test_marker.exe`, `mingw32-make test`, compilação com `-DNDEBUG`, sanitizadores, stress e `git diff --check`.
+- Resultados: GCC e Clang compilaram sem warnings; teste específico, suíte normal, stress, ASan/UBSan e variante `NDEBUG` passaram; um grafo cíclico de três objetos foi percorrido iterativamente a partir de ponteiros desalinhados e interiores; o último offset possível foi examinado; valores externos, limite final fora do heap e objetos menores que `uintptr_t` foram ignorados; Dr. Memory não foi executado porque permanece retirado por incompatibilidade com o Windows atual.
+- Erros da IA ou sugestões rejeitadas: o primeiro teste exigia ausência de falsos positivos mesmo com janelas de bytes sobrepostas, hipótese incompatível com varredura conservadora byte a byte; depois, um limite final escolhido coincidia com o início do objeto adjacente e era corretamente aceito pela AVL; os fixtures foram corrigidos para testar uma única janela e o fim do último intervalo; uma inspeção paralela inicial falhou no ambiente com `CreateProcessWithLogonW 1056`, mas as inspeções restantes e a validação posterior executaram normalmente.
+- Pendências e próximo passo: auditar o diff e criar o Commit 16 somente após autorização explícita; depois implementar o sweep do Commit 17.
+
+## 2026-06-22 11:22 — Criação do Commit 16
+
+- Prompt/objetivo: criar o commit da varredura conservadora de objetos.
+- Fase do PLAN.md: Fase 3 — Mark-sweep com raízes explícitas; conclusão do Commit 16.
+- Arquivos examinados: diff final, estado Git, histórico, limites de linhas e ausência de artefatos.
+- Alterações realizadas: preparação do commit `feat(gc): implementa varredura conservadora de objetos`.
+- Decisões e justificativas: o staging será restrito à varredura, testes, build e documentação deste marco.
+- Riscos ou erros procurados: arquivos fora do escopo, staging incompleto, whitespace inválido e artefatos de build.
+- Testes executados: `git diff --check`, inspeção final do diff e confirmação da suíte já executada.
+- Resultados: revisão aprovada e autorização explícita recebida para criar o Commit 16.
+- Erros da IA ou sugestões rejeitadas: nenhum identificado nesta etapa.
+- Pendências e próximo passo: criar o commit e iniciar o sweep do Commit 17 somente após nova solicitação.

@@ -86,13 +86,14 @@ projeto, além de símbolos, otimização desativada e frame pointers preservado
 
 ## Estado atual
 
-O repositório está na Fase 3, Commit 15, definida em `PLAN.md`. O módulo de
-marcação possui uma fila FIFO dinâmica e iterativa de objetos gerenciados.
-Um objeto recebe a marca antes de ser processado e não pode entrar novamente
-na mesma passagem, evitando ciclos e uso recursivo da pilha. A fila usa
-alocação interna e cresce geometricamente com verificação de overflow.
+O repositório está na Fase 3, Commit 16, definida em `PLAN.md`. A marcação
+varre cada objeto byte a byte e lê candidatos com `memcpy()`, evitando acesso
+desalinhado. Cada valor é consultado na árvore de intervalos; ponteiros para o
+início ou interior de objetos são enfileirados, enquanto valores externos são
+ignorados. Como a análise é conservadora, inteiros que coincidam com endereços
+gerenciados podem preservar objetos sem causar coleta incorreta.
 
-O próximo passo é o Commit 16: varrer conservadoramente o conteúdo dos objetos.
+O próximo passo é o Commit 17: implementar o sweep dos objetos não marcados.
 
 ## Documentação do desenvolvimento
 

@@ -44,16 +44,16 @@ $(SANITIZE_DIR)/test_interval_tree$(EXEEXT): tests/test_interval_tree.c \
 		src/interval_tree.c -o $@
 
 $(BUILD_DIR)/test_marker$(EXEEXT): tests/test_marker.c src/marker.c \
-		src/marker.h src/allocator.h include/interval_tree.h tests/test.h \
-		| $(BUILD_DIR)
+		src/interval_tree.c src/marker.h src/allocator.h \
+		include/interval_tree.h tests/test.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Isrc -Itests tests/test_marker.c \
-		src/marker.c -o $@
+		src/marker.c src/interval_tree.c -o $@
 
 $(SANITIZE_DIR)/test_marker$(EXEEXT): tests/test_marker.c src/marker.c \
-		src/marker.h src/allocator.h include/interval_tree.h tests/test.h \
-		| $(SANITIZE_DIR)
+		src/interval_tree.c src/marker.h src/allocator.h \
+		include/interval_tree.h tests/test.h | $(SANITIZE_DIR)
 	$(SAN_CC) $(SAN_FLAGS) -Iinclude -Isrc -Itests tests/test_marker.c \
-		src/marker.c -o $@
+		src/marker.c src/interval_tree.c -o $@
 
 GC_SOURCES := src/gc.c src/allocator.c src/interval_tree.c src/roots.c
 GC_HEADERS := include/gc.h include/gc_config.h include/gc_stats.h \
