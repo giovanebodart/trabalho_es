@@ -95,6 +95,7 @@ GCAllocation *gc_allocator_create(size_t requested, size_t reserved)
 
     allocation->requested_size = requested;
     allocation->reserved_size = reserved;
+    allocation->marked = false;
     allocation->next = NULL;
 #ifndef NDEBUG
     memcpy((unsigned char *)allocation->memory - GC_CANARY_SIZE,

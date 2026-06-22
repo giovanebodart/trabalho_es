@@ -10,6 +10,7 @@ typedef struct GCAllocation {
     void *memory;
     size_t requested_size;
     size_t reserved_size;
+    bool marked;
     struct GCAllocation *next;
 } GCAllocation;
 bool gc_allocator_reservation_size(size_t requested, size_t page_size,

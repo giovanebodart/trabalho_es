@@ -86,15 +86,13 @@ projeto, além de símbolos, otimização desativada e frame pointers preservado
 
 ## Estado atual
 
-O repositório está na Fase 3, Commit 14, definida em `PLAN.md`. As funções
-`gc_add_root()` e `gc_remove_root()` mantêm um conjunto de raízes explícitas.
-O cadastro armazena o endereço da variável-raiz, não uma cópia de seu valor,
-permitindo que a variável passe a apontar para outro objeto sem novo cadastro.
-Os metadados das raízes são internos e liberados por `gc_shutdown()`. A
-variável cadastrada deve permanecer válida até `gc_remove_root()` ou o
-encerramento do coletor.
+O repositório está na Fase 3, Commit 15, definida em `PLAN.md`. O módulo de
+marcação possui uma fila FIFO dinâmica e iterativa de objetos gerenciados.
+Um objeto recebe a marca antes de ser processado e não pode entrar novamente
+na mesma passagem, evitando ciclos e uso recursivo da pilha. A fila usa
+alocação interna e cresce geometricamente com verificação de overflow.
 
-O próximo passo é o Commit 15: implementar a fila iterativa de marcação.
+O próximo passo é o Commit 16: varrer conservadoramente o conteúdo dos objetos.
 
 ## Documentação do desenvolvimento
 

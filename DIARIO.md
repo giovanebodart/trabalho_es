@@ -327,3 +327,29 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: revisão aprovada e autorização explícita recebida para criar o Commit 14.
 - Erros da IA ou sugestões rejeitadas: nenhum identificado nesta etapa.
 - Pendências e próximo passo: criar o commit e iniciar a fila de marcação do Commit 15 somente após nova solicitação.
+
+## 2026-06-22 01:33 — Fila iterativa de marcação
+
+- Prompt/objetivo: prosseguir para o Commit 15 e implementar a estrutura de trabalho da marcação.
+- Fase do PLAN.md: Fase 3 — Mark-sweep com raízes explícitas; Commit 15.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, metadados de alocação, módulo de raízes, testes, Makefile, estado e histórico Git.
+- Alterações realizadas: criação do módulo `marker`, adição da marca ao metadado de cada objeto, fila FIFO dinâmica com crescimento geométrico, teste específico e integração aos alvos normal, sanitizado e stress.
+- Decisões e justificativas: a fila usa vetor e cursor de leitura para manter o processamento iterativo; a marca só é definida depois de a inserção ter espaço garantido, evitando objeto marcado que não entrou na fila após falha de `realloc()`; objetos retirados continuam marcados para impedir reinserção por ciclos; a limpeza das marcas pertence ao sweep do Commit 17.
+- Riscos ou erros procurados: overflow ao dobrar capacidade ou calcular bytes, perda do ponteiro antigo após falha de `realloc()`, marcação antes da inserção, duplicatas, alteração da ordem FIFO, underflow na quantidade pendente, uso recursivo da pilha e estado residual após destruir a fila.
+- Testes executados: `mingw32-make clean`, `mingw32-make all`, teste específico `build\test_marker.exe`, `mingw32-make test`, compilação de `marker.c` e `allocator.c` com `-DNDEBUG`, sanitizadores, stress e `git diff --check`.
+- Resultados: GCC e Clang compilaram sem warnings; teste específico, suíte normal, stress, ASan/UBSan e variante `NDEBUG` passaram; 40 objetos forçaram crescimento além da capacidade inicial, mantiveram ordem FIFO e permaneceram marcados após processamento; entradas inválidas, objeto previamente marcado e duplicata foram rejeitados; Dr. Memory não foi executado porque permanece retirado por incompatibilidade com o Windows atual.
+- Erros da IA ou sugestões rejeitadas: nenhum identificado.
+- Pendências e próximo passo: auditar o diff e criar o Commit 15 somente após autorização explícita; depois implementar a varredura conservadora do Commit 16.
+
+## 2026-06-22 02:25 — Criação do Commit 15
+
+- Prompt/objetivo: criar o commit da fila iterativa de marcação.
+- Fase do PLAN.md: Fase 3 — Mark-sweep com raízes explícitas; conclusão do Commit 15.
+- Arquivos examinados: diff final, estado Git, histórico, limites de linhas e ausência de artefatos.
+- Alterações realizadas: preparação do commit `feat(gc): implementa fila iterativa de marcação`.
+- Decisões e justificativas: o staging será restrito à fila, marca do objeto, testes, build e documentação deste marco.
+- Riscos ou erros procurados: arquivos fora do escopo, staging incompleto, whitespace inválido e artefatos de build.
+- Testes executados: `git diff --check`, inspeção final do diff e confirmação da suíte já executada.
+- Resultados: revisão aprovada e autorização explícita recebida para criar o Commit 15.
+- Erros da IA ou sugestões rejeitadas: nenhum identificado nesta etapa.
+- Pendências e próximo passo: criar o commit e iniciar a varredura conservadora do Commit 16 somente após nova solicitação.
