@@ -12,6 +12,7 @@
 #include "gc_config.h"
 #include "gc.h"
 #include "gc_internal.h"
+#include "roots.h"
 
 #include <stdint.h>
 
@@ -24,8 +25,10 @@ typedef struct {
     size_t memory_limit;
     size_t collection_request_count;
     size_t allocation_count;
+    size_t root_count;
     GCAllocation *allocations;
     IntervalNode *allocation_tree;
+    GCRoot *roots;
     GCStats stats;
     GCStatus status;
 } GCState;
@@ -39,6 +42,8 @@ static GCState gc_state = {
     GC_DEFAULT_MEMORY_LIMIT,
     0,
     0,
+    0,
+    NULL,
     NULL,
     NULL,
     {0, 0, 0, 0},
@@ -216,6 +221,66 @@ int gc_get_stats(GCStats *out)
     return GC_SUCCESS;
 }
 
+int gc_add_root(void **root)
+{
+    GCRootResult result;
+
+    if (!gc_state.initialized) {
+        gc_state.status = GC_STATUS_NOT_INITIALIZED;
+        return GC_FAILURE;
+    }
+    if (!gc_is_owner_thread()) {
+        gc_state.status = GC_STATUS_WRONG_THREAD;
+        return GC_FAILURE;
+    }
+    if (root == NULL) {
+        gc_state.status = GC_STATUS_INVALID_ARGUMENT;
+        return GC_FAILURE;
+    }
+    if (gc_state.root_count == SIZE_MAX) {
+        gc_state.status = GC_STATUS_SIZE_OVERFLOW;
+        return GC_FAILURE;
+    }
+
+    result = gc_roots_add(&gc_state.roots, root);
+    if (result != GC_ROOT_RESULT_OK) {
+        gc_state.status = result == GC_ROOT_RESULT_DUPLICATE
+                          ? GC_STATUS_DUPLICATE_ROOT
+                          : GC_STATUS_OUT_OF_MEMORY;
+        return GC_FAILURE;
+    }
+    ++gc_state.root_count;
+    gc_state.status = GC_STATUS_OK;
+    return GC_SUCCESS;
+}
+
+int gc_remove_root(void **root)
+{
+    GCRootResult result;
+
+    if (!gc_state.initialized) {
+        gc_state.status = GC_STATUS_NOT_INITIALIZED;
+        return GC_FAILURE;
+    }
+    if (!gc_is_owner_thread()) {
+        gc_state.status = GC_STATUS_WRONG_THREAD;
+        return GC_FAILURE;
+    }
+    if (root == NULL) {
+        gc_state.status = GC_STATUS_INVALID_ARGUMENT;
+        return GC_FAILURE;
+    }
+
+    result = gc_roots_remove(&gc_state.roots, root);
+    if (result != GC_ROOT_RESULT_OK) {
+        gc_state.status = GC_STATUS_ROOT_NOT_FOUND;
+        return GC_FAILURE;
+    }
+    --gc_state.root_count;
+    gc_state.status = GC_STATUS_OK;
+    return GC_SUCCESS;
+}
+
 void gc_shutdown(void)
 {
     bool canaries_valid;
@@ -230,6 +295,7 @@ void gc_shutdown(void)
     }
 
     canaries_valid = gc_allocator_validate_all(gc_state.allocations);
+    gc_roots_destroy_all(gc_state.roots);
     gc_allocator_destroy_all(gc_state.allocations);
     gc_state.initialized = false;
     gc_state.owner_thread_id = 0;
@@ -239,8 +305,10 @@ void gc_shutdown(void)
     gc_state.memory_limit = GC_DEFAULT_MEMORY_LIMIT;
     gc_state.collection_request_count = 0;
     gc_state.allocation_count = 0;
+    gc_state.root_count = 0;
     gc_state.allocations = NULL;
     gc_state.allocation_tree = NULL;
+    gc_state.roots = NULL;
     gc_state.stats = (GCStats){0, 0, 0, 0};
     gc_state.status = canaries_valid
                       ? GC_STATUS_OK
@@ -297,6 +365,23 @@ size_t gc_internal_memory_limit(void)
 size_t gc_internal_collection_request_count(void)
 {
     return gc_state.collection_request_count;
+}
+
+size_t gc_internal_root_count(void)
+{
+    return gc_state.root_count;
+}
+
+bool gc_internal_get_root_value(void **root, void **value)
+{
+    if (value != NULL) {
+        *value = NULL;
+    }
+    if (!gc_state.initialized || !gc_is_owner_thread()
+        || root == NULL || value == NULL) {
+        return false;
+    }
+    return gc_roots_get_value(gc_state.roots, root, value);
 }
 
 bool gc_internal_get_allocation_info(const void *address,

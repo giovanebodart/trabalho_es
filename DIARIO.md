@@ -288,3 +288,42 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: revisão aprovada; árvore sem artefatos e alterações dentro dos limites definidos pelo projeto.
 - Erros da IA ou sugestões rejeitadas: nenhum identificado.
 - Pendências e próximo passo: criar o Commit 13 e, após nova solicitação, iniciar o Commit 14.
+
+## 2026-06-21 17:27 — Ponto adequado para visualizar o coletor
+
+- Prompt/objetivo: determinar a partir de qual commit será possível criar um mecanismo visual satisfatório para observar o coletor em funcionamento.
+- Fase do PLAN.md: análise entre o Commit 13 concluído e a Fase 3 de mark-sweep.
+- Arquivos examinados: `PLAN.md`, `README.md`, `DIARIO.md`, estado Git e histórico recente.
+- Alterações realizadas: nenhuma alteração de código; registro da estratégia recomendada para a futura ferramenta de visualização.
+- Decisões e justificativas: o Commit 18 é o primeiro ponto em que existe um ciclo completo de `gc_collect()` com preparação, raízes explícitas, marcação, sweep e métricas; o Commit 19 é o ponto recomendado para uma visualização satisfatória porque acrescenta listas, árvores e grafos cíclicos que permitem demonstrar objetos vivos, alcançabilidade, ciclos mortos e memória recuperada.
+- Riscos ou erros procurados: criar uma interface que simule fases ainda inexistentes, acoplar diagnóstico ao caminho de produção, confundir raízes explícitas com raízes automáticas e antecipar visualização geracional antes das duas gerações estarem implementadas.
+- Testes executados: inspeção do roteiro e das dependências entre os Commits 14 a 22 e 27 a 33; nenhum build foi necessário porque não houve alteração de código.
+- Resultados: visualização parcial já seria possível após o Commit 17; visualização funcional após o Commit 18; demonstração recomendada após o Commit 19; raízes automáticas só poderão ser mostradas após o Commit 22 e comportamento geracional completo após o Commit 33.
+- Erros da IA ou sugestões rejeitadas: nenhum identificado.
+- Pendências e próximo passo: continuar pelo Commit 14 e planejar a ferramenta visual como um commit complementar após o Commit 19.
+
+## 2026-06-22 01:11 — Conjunto de raízes explícitas
+
+- Prompt/objetivo: prosseguir para o Commit 14 e implementar cadastro e remoção de variáveis-raiz.
+- Fase do PLAN.md: Fase 3 — Mark-sweep com raízes explícitas; Commit 14.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, API e estado do coletor, testes, Makefile, estado e histórico Git.
+- Alterações realizadas: criação do módulo `roots`, adição de `gc_add_root()` e `gc_remove_root()`, novos estados para duplicata e raiz ausente, integração ao estado e ao shutdown, consultas internas e testes.
+- Decisões e justificativas: cada metadado guarda `void **location`, o endereço da variável-raiz, para que a futura marcação leia seu valor atual; variáveis inicialmente `NULL` são válidas; os metadados usam `malloc()` interno para evitar recursão em `gc_malloc()`; uma lista encadeada é suficiente porque esta etapa prioriza correção e as raízes serão percorridas linearmente durante a marcação.
+- Riscos ou erros procurados: guardar uma cópia obsoleta do valor, aceitar cadastro duplicado, remover o nó errado, perder o restante da lista, decrementar contagem após falha, dereferenciar raízes no shutdown, acesso por outra thread, vazamento de metadados e estado residual após reinicialização.
+- Testes executados: `mingw32-make clean`, `mingw32-make all`, teste específico `build\test_gc.exe`, compilação de `roots.c` e `gc.c` com `-DNDEBUG`, suíte completa, sanitizadores, stress e `git diff --check`.
+- Resultados: GCC e Clang compilaram sem warnings; teste específico, suíte normal, stress, ASan/UBSan e variante `NDEBUG` passaram; uma raiz cadastrada como `NULL` refletiu mudanças posteriores para dois objetos diferentes; duplicata, raiz ausente, argumento nulo e thread incorreta foram detectados; shutdown liberou os metadados e zerou a contagem; Dr. Memory não foi executado porque permanece retirado por incompatibilidade com o Windows atual.
+- Erros da IA ou sugestões rejeitadas: durante a implementação, o inicializador de `GCState` recebeu inicialmente um `NULL` na posição do novo contador de raízes; a inspeção imediata detectou o deslocamento antes da compilação e adicionou o zero ausente.
+- Pendências e próximo passo: auditar o diff e criar o Commit 14 somente após autorização explícita; a variável-raiz deve permanecer válida até ser removida ou até o shutdown.
+
+## 2026-06-22 01:19 — Criação do Commit 14
+
+- Prompt/objetivo: criar o commit do conjunto de raízes explícitas.
+- Fase do PLAN.md: Fase 3 — Mark-sweep com raízes explícitas; conclusão do Commit 14.
+- Arquivos examinados: diff final, estado Git, histórico recente, limites de linhas e ausência de artefatos.
+- Alterações realizadas: preparação do commit `feat(gc): implementa conjunto de raízes explícitas`.
+- Decisões e justificativas: o staging será restrito à API, módulo de raízes, integração, testes e documentação deste marco.
+- Riscos ou erros procurados: arquivos fora do escopo, staging incompleto, whitespace inválido e artefatos de build.
+- Testes executados: `git diff --check`, inspeção final do diff e confirmação da suíte executada sobre o mesmo conteúdo.
+- Resultados: revisão aprovada e autorização explícita recebida para criar o Commit 14.
+- Erros da IA ou sugestões rejeitadas: nenhum identificado nesta etapa.
+- Pendências e próximo passo: criar o commit e iniciar a fila de marcação do Commit 15 somente após nova solicitação.

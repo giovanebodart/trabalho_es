@@ -25,6 +25,12 @@ static DWORD WINAPI set_limit_from_other_thread(LPVOID context)
     return 0;
 }
 
+static DWORD WINAPI add_root_from_other_thread(LPVOID context)
+{
+    (void)gc_add_root((void **)context);
+    return 0;
+}
+
 static int test_invalid_state_transitions(void)
 {
     gc_shutdown();
@@ -226,6 +232,60 @@ static int test_debug_canaries(void)
     return EXIT_SUCCESS;
 }
 
+static int test_explicit_roots(void)
+{
+    void *root = NULL;
+    void *second_root = NULL;
+    void *current = (void *)(uintptr_t)1;
+    void *first_object;
+    void *second_object;
+    HANDLE thread;
+
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_init());
+    TEST_ASSERT_EQ_INT(GC_FAILURE, gc_add_root(NULL));
+    TEST_ASSERT_EQ_INT(GC_STATUS_INVALID_ARGUMENT, gc_get_status());
+
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_add_root(&root));
+    TEST_ASSERT(gc_internal_root_count() == (size_t)1);
+    TEST_ASSERT(gc_internal_get_root_value(&root, &current));
+    TEST_ASSERT(current == NULL);
+    TEST_ASSERT_EQ_INT(GC_FAILURE, gc_add_root(&root));
+    TEST_ASSERT_EQ_INT(GC_STATUS_DUPLICATE_ROOT, gc_get_status());
+
+    first_object = gc_malloc(8);
+    second_object = gc_malloc(8);
+    TEST_ASSERT(first_object != NULL && second_object != NULL);
+    root = first_object;
+    TEST_ASSERT(gc_internal_get_root_value(&root, &current));
+    TEST_ASSERT(current == first_object);
+    root = second_object;
+    TEST_ASSERT(gc_internal_get_root_value(&root, &current));
+    TEST_ASSERT(current == second_object);
+
+    thread = CreateThread(NULL, 0, add_root_from_other_thread,
+                          &second_root, 0, NULL);
+    TEST_ASSERT(thread != NULL);
+    TEST_ASSERT(WaitForSingleObject(thread, INFINITE) == WAIT_OBJECT_0);
+    TEST_ASSERT(CloseHandle(thread));
+    TEST_ASSERT_EQ_INT(GC_STATUS_WRONG_THREAD, gc_get_status());
+    TEST_ASSERT(gc_internal_root_count() == (size_t)1);
+
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_remove_root(&root));
+    TEST_ASSERT(gc_internal_root_count() == (size_t)0);
+    TEST_ASSERT(!gc_internal_get_root_value(&root, &current));
+    TEST_ASSERT(current == NULL);
+    TEST_ASSERT_EQ_INT(GC_FAILURE, gc_remove_root(&root));
+    TEST_ASSERT_EQ_INT(GC_STATUS_ROOT_NOT_FOUND, gc_get_status());
+    TEST_ASSERT_EQ_INT(GC_FAILURE, gc_remove_root(NULL));
+    TEST_ASSERT_EQ_INT(GC_STATUS_INVALID_ARGUMENT, gc_get_status());
+
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_add_root(&second_root));
+    gc_shutdown();
+    TEST_ASSERT_EQ_INT(GC_STATUS_OK, gc_get_status());
+    TEST_ASSERT(gc_internal_root_count() == (size_t)0);
+    return EXIT_SUCCESS;
+}
+
 int main(void)
 {
     GCStats stats = {1, 1, 1, 1};
@@ -233,6 +293,10 @@ int main(void)
     TEST_ASSERT(gc_malloc(8) == NULL);
     TEST_ASSERT_EQ_INT(GC_STATUS_NOT_INITIALIZED, gc_get_status());
     TEST_ASSERT_EQ_INT(GC_FAILURE, gc_set_memory_limit(4096));
+    TEST_ASSERT_EQ_INT(GC_STATUS_NOT_INITIALIZED, gc_get_status());
+    TEST_ASSERT_EQ_INT(GC_FAILURE, gc_add_root(NULL));
+    TEST_ASSERT_EQ_INT(GC_STATUS_NOT_INITIALIZED, gc_get_status());
+    TEST_ASSERT_EQ_INT(GC_FAILURE, gc_remove_root(NULL));
     TEST_ASSERT_EQ_INT(GC_STATUS_NOT_INITIALIZED, gc_get_status());
     TEST_ASSERT_EQ_INT(GC_FAILURE, gc_get_stats(NULL));
     TEST_ASSERT_EQ_INT(GC_STATUS_INVALID_ARGUMENT, gc_get_status());
@@ -245,6 +309,7 @@ int main(void)
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_virtual_alloc_objects());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_memory_pressure());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_debug_canaries());
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_explicit_roots());
     puts("test_gc: ok");
     return EXIT_SUCCESS;
 }

@@ -19,13 +19,17 @@ typedef enum {
     GC_STATUS_SIZE_OVERFLOW,
     GC_STATUS_OUT_OF_MEMORY,
     GC_STATUS_INTERNAL_ERROR,
-    GC_STATUS_CORRUPTED_MEMORY
+    GC_STATUS_CORRUPTED_MEMORY,
+    GC_STATUS_DUPLICATE_ROOT,
+    GC_STATUS_ROOT_NOT_FOUND
 } GCStatus;
 
 int gc_init(void);
 void *gc_malloc(size_t size);
 int gc_set_memory_limit(size_t bytes);
 int gc_get_stats(GCStats *out);
+int gc_add_root(void **root);
+int gc_remove_root(void **root);
 void gc_shutdown(void);
 
 bool gc_is_initialized(void);

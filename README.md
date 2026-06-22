@@ -86,14 +86,15 @@ projeto, além de símbolos, otimização desativada e frame pointers preservado
 
 ## Estado atual
 
-O repositório está na Fase 2, Commit 13, definida em `PLAN.md`. O coletor usa
-um limite flexível padrão de 64 MiB sobre os bytes reservados. Após `gc_init()`,
-`gc_set_memory_limit()` permite configurar esse limiar. Quando uma alocação o
-ultrapassa, `gc_malloc()` registra uma solicitação de coleta e, enquanto o
-mark-sweep ainda não existe, amplia o limite geometricamente somente após a
-alocação Win32 ter sucesso.
+O repositório está na Fase 3, Commit 14, definida em `PLAN.md`. As funções
+`gc_add_root()` e `gc_remove_root()` mantêm um conjunto de raízes explícitas.
+O cadastro armazena o endereço da variável-raiz, não uma cópia de seu valor,
+permitindo que a variável passe a apontar para outro objeto sem novo cadastro.
+Os metadados das raízes são internos e liberados por `gc_shutdown()`. A
+variável cadastrada deve permanecer válida até `gc_remove_root()` ou o
+encerramento do coletor.
 
-O próximo passo é o Commit 14: criar o conjunto de raízes explícitas.
+O próximo passo é o Commit 15: implementar a fila iterativa de marcação.
 
 ## Documentação do desenvolvimento
 

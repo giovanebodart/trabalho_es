@@ -43,9 +43,10 @@ $(SANITIZE_DIR)/test_interval_tree$(EXEEXT): tests/test_interval_tree.c \
 	$(SAN_CC) $(SAN_FLAGS) -Iinclude -Itests tests/test_interval_tree.c \
 		src/interval_tree.c -o $@
 
-GC_SOURCES := src/gc.c src/allocator.c src/interval_tree.c
+GC_SOURCES := src/gc.c src/allocator.c src/interval_tree.c src/roots.c
 GC_HEADERS := include/gc.h include/gc_config.h include/gc_stats.h \
-		include/interval_tree.h src/allocator.h src/gc_internal.h
+		include/interval_tree.h src/allocator.h src/gc_internal.h \
+		src/roots.h
 
 $(BUILD_DIR)/test_gc$(EXEEXT): tests/test_gc.c $(GC_SOURCES) $(GC_HEADERS) \
 		tests/test.h | $(BUILD_DIR)
