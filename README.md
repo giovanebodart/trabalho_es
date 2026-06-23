@@ -86,15 +86,14 @@ projeto, além de símbolos, otimização desativada e frame pointers preservado
 
 ## Estado atual
 
-O repositório está na Fase 3, Commit 19, definida em `PLAN.md`. Os programas
-`example_list`, `example_tree` e `example_cyclic_graph` exercitam o coletor
-somente pela API pública. Cada programa comprova que a estrutura enraizada é
-preservada e que seus objetos são recuperados após a raiz ser zerada. O grafo
-inclui ciclos, referências cruzadas e autorreferência.
+O repositório está na Fase 4, com o Commit 20 concluído. O módulo
+`stack_roots` detecta experimentalmente a direção de crescimento da pilha e
+examina conservadoramente o intervalo ativo até o limite capturado no Windows.
 
-Os exemplos são compilados por `mingw32-make all` e executados por `test`,
-`stress` e `sanitize`. O próximo passo é o Commit 20: implementar a varredura
-automática da pilha.
+A varredura da pilha ainda não participa de `gc_collect()`: essa integração
+ocorrerá no Commit 22, depois da captura de registradores. O próximo passo é o
+Commit 21, que salvará o contexto com `setjmp()` sem depender da representação
+interna de `jmp_buf`.
 
 ## Documentação do desenvolvimento
 

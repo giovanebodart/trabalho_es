@@ -431,3 +431,42 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: mensagem confirmada e mudanças do usuário mantidas fora do staging.
 - Erros da IA ou sugestões rejeitadas: o commit já havia sido criado antes desta confirmação adicional; não foi criado um commit vazio.
 - Pendências e próximo passo: incorporar este registro ao Commit 19 e aguardar solicitação para o Commit 20.
+
+## 2026-06-23 00:51 - Varredura conservadora da pilha
+
+- Prompt/objetivo: implementar, validar e criar o Commit 20.
+- Fase do PLAN.md: Fase 4 - Pilha e registradores; Commit 20.
+- Arquivos examinados: regras locais, plano, diario, estado Git, captura dos limites da pilha, fila de marcacao, arvore de intervalos, testes e Makefile.
+- Alteracoes realizadas: criacao do modulo `stack_roots`, deteccao experimental da direcao da pilha, varredura byte a byte entre o quadro atual e o limite Win32, teste especifico e integracao ao build.
+- Decisoes e justificativas: o modulo apenas prepara raizes de pilha; a integracao ao `gc_collect()` permanece para o Commit 22, apos a captura de registradores do Commit 21; candidatos desalinhados sao lidos com `memcpy()`.
+- Riscos ou erros procurados: limites invertidos, leitura fora da pilha ativa, overflow de enderecos, candidato interior, raiz mantida apenas em registrador, falsos positivos, duplicacao na fila e dependencia fragil da otimizacao.
+- Testes executados: build limpo, teste especifico, suite normal, stress, ASan/UBSan, variante `NDEBUG`, GCC `-O2` em 100 execucoes, Clang `-O2` e `git diff --check`.
+- Resultados: crescimento descendente confirmado no Windows x86-64; regiao desalinhada e raiz real de pilha foram marcadas; todas as validacoes passaram sem warnings.
+- Erros da IA ou sugestoes rejeitadas: o primeiro teste usou uma assercao em funcao `void` e omitiu `_WIN32_WINNT`; o ASan reportou redzones esperados da pilha, portanto apenas a leitura conservadora foi excluida da instrumentacao de endereco; uma execucao paralela de `clean` e `sanitize` causou corrida no diretorio de build e foi repetida sequencialmente.
+- Pendencias e proximo passo: criar o commit `feat(gc): implementa varredura conservadora da pilha`; o visualizador e as alteracoes preexistentes permanecem fora do staging; depois iniciar o Commit 21 com `setjmp()`.
+
+## 2026-06-23 15:41 - Confirmacao da mensagem do Commit 20
+
+- Prompt/objetivo: criar o commit com a mensagem indicada.
+- Fase do PLAN.md: Fase 4 - Pilha e registradores; fechamento do Commit 20.
+- Arquivos examinados: commit atual, assunto do commit, estado Git e alteracoes pendentes.
+- Alteracoes realizadas: confirmacao da mensagem `feat(gc): implementa varredura conservadora da pilha` e registro desta solicitacao no diario.
+- Decisoes e justificativas: o commit funcional ja existia com a mensagem exata; para evitar um commit vazio, somente este registro sera incorporado ao mesmo commit por amend.
+- Riscos ou erros procurados: duplicacao de commit, mudanca involuntaria da mensagem e inclusao do visualizador ou das alteracoes preexistentes.
+- Testes executados: inspecao do hash, assunto, staging e estado da arvore; nenhum teste de codigo foi repetido porque nao houve alteracao funcional.
+- Resultados: mensagem confirmada e staging mantido restrito ao registro desta confirmacao.
+- Erros da IA ou sugestoes rejeitadas: o commit foi criado antes desta confirmacao adicional; nenhum commit vazio sera criado.
+- Pendencias e proximo passo: incorporar este registro ao Commit 20 e aguardar solicitacao para o Commit 21.
+
+## 2026-06-23 15:52 - Correcao do fechamento do Commit 20
+
+- Prompt/objetivo: verificar o commit, corrigir arquivos pendentes e atualizar o estado documentado.
+- Fase do PLAN.md: Fase 4 - Pilha e registradores; auditoria do Commit 20 e do pedido extra anterior.
+- Arquivos examinados: imagens fornecidas, `git status`, HEAD, staging, diff, README, diario, visualizador e modulo `stack_roots`.
+- Alteracoes realizadas: confirmacao do Commit 20, atualizacao do estado no README e separacao entre o visualizador extra e alteracoes locais sem relacao.
+- Decisoes e justificativas: o Commit 20 sera corrigido por amend apenas com documentacao; o visualizador tera commit proprio para preservar um objetivo logico por commit.
+- Riscos ou erros procurados: arquivos esquecidos, staging acidental, documentacao obsoleta, mistura de escopos e perda de alteracoes preexistentes.
+- Testes executados: inspecao do conteudo e estatisticas do Commit 20, comparacao dos diffs staged e unstaged e verificacao dos arquivos presentes no HEAD.
+- Resultados: `stack_roots`, seu teste e o Makefile estavam commitados; o visualizador e sua documentacao estavam apenas pendentes; o README ainda indicava incorretamente o Commit 19.
+- Erros da IA ou sugestoes rejeitadas: a IA informou que o pedido extra permanecia fora do commit sem concluir posteriormente o commit complementar e nao atualizou a secao `Estado atual` do README ao fechar o Commit 20.
+- Pendencias e proximo passo: incorporar esta correcao ao Commit 20, validar e criar um commit separado para o visualizador; depois iniciar o Commit 21.
