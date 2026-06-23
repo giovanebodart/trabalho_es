@@ -535,3 +535,29 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: validacao final aprovada e autorizacao explicita recebida para criar o commit com a mensagem indicada.
 - Erros da IA ou sugestoes rejeitadas: nenhum identificado nesta etapa.
 - Pendencias e proximo passo: criar o Commit 22; depois iniciar o Commit 23 somente apos nova solicitacao.
+
+## 2026-06-23 17:02 - Arenas iniciais de alocacao
+
+- Prompt/objetivo: prosseguir para o Commit 23 e introduzir arenas.
+- Fase do PLAN.md: Fase 5 - Arenas e escalabilidade; Commit 23.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, alocador, `gc.c`, sweep, testes integrados, teste de sweep, estado e historico Git.
+- Alteracoes realizadas: o alocador passou a reservar arenas de 64 KiB com `VirtualAlloc()` e entregar blocos sequenciais alinhados; `gc_allocator_destroy_one()` libera metadados, e `gc_allocator_destroy_all()` libera as arenas.
+- Decisoes e justificativas: os metadados continuam fora do heap gerenciado e a AVL continua recebendo cada objeto individual; `bytes_reserved` passa a representar o bloco ativo dentro da arena, nao uma pagina por objeto.
+- Riscos ou erros procurados: overflow de alinhamento, perda de canarios, desalinhamento, arvore representando arena inteira por engano, sweep liberando arena antes da hora, shutdown sem liberar arenas e pressao de memoria com nova granularidade.
+- Testes executados: `mingw32-make clean`, `mingw32-make all`, `mingw32-make test`, `mingw32-make sanitize`, `mingw32-make stress`, visualizador do coletor `-BuildOnly` e `-Demo`, e `git diff --check`.
+- Resultados: todas as validacoes passaram sem warnings; testes confirmaram objetos na mesma `AllocationBase` e busca fora do intervalo logico do objeto rejeitada.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: revisar o diff final e criar o commit `feat(gc): introduz arenas`; reuso de blocos e classes de tamanho ficam para os Commits 24 e 25.
+
+## 2026-06-23 17:05 - Criacao do Commit 23
+
+- Prompt/objetivo: criar o Commit 23 com a mensagem indicada.
+- Fase do PLAN.md: Fase 5 - Arenas e escalabilidade; fechamento do Commit 23.
+- Arquivos examinados: estado Git, diff final, limites de linhas e arquivos do Commit 23.
+- Alteracoes realizadas: registro da autorizacao e preparacao do commit `feat(gc): introduz arenas`.
+- Decisoes e justificativas: o staging sera restrito ao Commit 23; `.gitignore` e `src/marker.h` permanecerao fora.
+- Riscos ou erros procurados: staging acidental, whitespace invalido, artefatos de build e mistura com classes de tamanho.
+- Testes executados: confirmacao de `git diff --check` e da suite ja executada sobre o mesmo conteudo funcional.
+- Resultados: autorizacao explicita recebida para criar o commit com a mensagem indicada.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado nesta etapa.
+- Pendencias e proximo passo: criar o Commit 23; depois iniciar o Commit 24 somente apos nova solicitacao.

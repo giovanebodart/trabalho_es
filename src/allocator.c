@@ -8,11 +8,22 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define GC_ARENA_SIZE ((size_t)64 * 1024u)
+
 typedef union {
     long double long_double_value;
     long long long_long_value;
     void *pointer_value;
 } GCNaturalAlignment;
+
+typedef struct GCArena {
+    unsigned char *memory;
+    size_t capacity;
+    size_t used;
+    struct GCArena *next;
+} GCArena;
+
+static GCArena *gc_arenas;
 
 #ifndef NDEBUG
 static const uint64_t GC_CANARY_BEFORE = UINT64_C(0xD15EA5ECAFEBABE);
@@ -35,12 +46,30 @@ static bool add_sizes(size_t left, size_t right, size_t *result)
     return true;
 }
 
+static bool align_size(size_t value, size_t alignment, size_t *result)
+{
+    size_t remainder;
+
+    if (alignment == 0 || result == NULL) {
+        return false;
+    }
+    remainder = value % alignment;
+    if (remainder == 0) {
+        *result = value;
+        return true;
+    }
+    if (value > SIZE_MAX - (alignment - remainder)) {
+        return false;
+    }
+    *result = value + alignment - remainder;
+    return true;
+}
+
 bool gc_allocator_reservation_size(size_t requested,
                                    size_t page_size,
                                    size_t *reserved)
 {
     size_t layout_size;
-    size_t remainder;
 
     if (requested == 0 || page_size == 0 || reserved == NULL) {
         return false;
@@ -51,44 +80,82 @@ bool gc_allocator_reservation_size(size_t requested,
         return false;
     }
 
-    remainder = layout_size % page_size;
-    if (remainder == 0) {
-        *reserved = layout_size;
-        return true;
-    }
-    if (layout_size > SIZE_MAX - (page_size - remainder)) {
-        return false;
+    return align_size(layout_size, _Alignof(GCNaturalAlignment), reserved);
+}
+
+static GCArena *gc_arena_create(size_t minimum)
+{
+    GCArena *arena;
+    size_t capacity;
+
+    if (!align_size(minimum, GC_ARENA_SIZE, &capacity)) {
+        return NULL;
     }
 
-    *reserved = layout_size + page_size - remainder;
-    return true;
+    arena = malloc(sizeof *arena);
+    if (arena == NULL) {
+        return NULL;
+    }
+    arena->memory = VirtualAlloc(NULL, capacity,
+                                 MEM_RESERVE | MEM_COMMIT,
+                                 PAGE_READWRITE);
+    if (arena->memory == NULL) {
+        free(arena);
+        return NULL;
+    }
+
+    arena->capacity = capacity;
+    arena->used = 0;
+    arena->next = gc_arenas;
+    gc_arenas = arena;
+    return arena;
+}
+
+static void *gc_arena_allocate(size_t size)
+{
+    GCArena *arena = gc_arenas;
+
+    while (arena != NULL) {
+        if (arena->used <= arena->capacity
+            && size <= arena->capacity - arena->used) {
+            void *block = arena->memory + arena->used;
+
+            arena->used += size;
+            return block;
+        }
+        arena = arena->next;
+    }
+
+    arena = gc_arena_create(size);
+    if (arena == NULL) {
+        return NULL;
+    }
+    arena->used = size;
+    return arena->memory;
 }
 
 GCAllocation *gc_allocator_create(size_t requested, size_t reserved)
 {
     GCAllocation *allocation = malloc(sizeof *allocation);
     uintptr_t start;
-    unsigned char *mapping;
+    unsigned char *block;
 
     if (allocation == NULL) {
         return NULL;
     }
 
-    allocation->mapping = VirtualAlloc(NULL, reserved,
-                                       MEM_RESERVE | MEM_COMMIT,
-                                       PAGE_READWRITE);
-    if (allocation->mapping == NULL) {
+    block = gc_arena_allocate(reserved);
+    if (block == NULL) {
         free(allocation);
         return NULL;
     }
 
-    mapping = allocation->mapping;
-    allocation->memory = mapping + GC_PREFIX_SIZE;
+    allocation->mapping = block;
+    allocation->memory = block + GC_PREFIX_SIZE;
     start = (uintptr_t)allocation->memory;
     if (requested > UINTPTR_MAX - start
         || !interval_node_init(&allocation->interval,
                                start, start + requested)) {
-        (void)VirtualFree(allocation->mapping, 0, MEM_RELEASE);
         free(allocation);
         return NULL;
     }
@@ -164,8 +231,7 @@ bool gc_allocator_corrupt_canary(GCAllocation *allocation,
 
 bool gc_allocator_destroy_one(GCAllocation *allocation)
 {
-    if (allocation == NULL
-        || !VirtualFree(allocation->mapping, 0, MEM_RELEASE)) {
+    if (allocation == NULL) {
         return false;
     }
     free(allocation);
@@ -177,8 +243,14 @@ void gc_allocator_destroy_all(GCAllocation *allocation)
     while (allocation != NULL) {
         GCAllocation *next = allocation->next;
 
-        (void)VirtualFree(allocation->mapping, 0, MEM_RELEASE);
         free(allocation);
         allocation = next;
+    }
+    while (gc_arenas != NULL) {
+        GCArena *next = gc_arenas->next;
+
+        (void)VirtualFree(gc_arenas->memory, 0, MEM_RELEASE);
+        free(gc_arenas);
+        gc_arenas = next;
     }
 }

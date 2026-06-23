@@ -277,7 +277,7 @@ void *gc_malloc(size_t size)
     }
     if (!interval_tree_insert(&gc_state.allocation_tree,
                               &allocation->interval)) {
-        gc_allocator_destroy_all(allocation);
+        (void)gc_allocator_destroy_one(allocation);
         gc_state.status = GC_STATUS_INTERNAL_ERROR;
         return NULL;
     }

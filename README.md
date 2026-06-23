@@ -90,15 +90,14 @@ O visualizador ASCII mostra raizes, referencias, objetos alcancaveis, lixo e met
 
 ## Estado atual
 
-O repositório está na Fase 4, com o Commit 22 implementado. `gc_collect()`
-combina raízes explícitas, registradores salvos com `setjmp()` e varredura
-conservadora da pilha capturada no `gc_init()`.
+O repositório está na Fase 5, com o Commit 23 implementado. O alocador reserva
+arenas de 64 KiB com `VirtualAlloc()` e entrega blocos sequenciais para os
+objetos; os metadados continuam separados do conteúdo alocado pelo usuário.
 
-Por ser conservador, o coletor pode reter objetos mortos quando algum padrão de
-bits na pilha ou nos registradores parece apontar para o heap gerenciado. Isso é
-um falso positivo esperado: aumenta retenção temporária, mas evita coletar um
-objeto vivo por engano. Testes e exemplos limpam ponteiros auxiliares antes de
-esperar coleta exata.
+A árvore de intervalos continua representando cada objeto individual, não a
+arena inteira. Neste ponto as arenas são monotônicas: o sweep remove objetos da
+árvore e libera metadados, mas a reutilização de blocos e a liberação de arenas
+vazias ficam para os próximos commits.
 
 ## Documentação do desenvolvimento
 

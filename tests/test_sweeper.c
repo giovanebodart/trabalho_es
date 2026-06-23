@@ -45,7 +45,7 @@ static int test_sweep_releases_unmarked_objects(void)
     TEST_ASSERT(stats.bytes_collected
                 == sizes[0] + sizes[2] + sizes[4]);
     TEST_ASSERT(stats.bytes_reserved
-                == (size_t)system_info.dwPageSize * (size_t)2);
+                == objects[1]->reserved_size + objects[3]->reserved_size);
     TEST_ASSERT(!objects[1]->marked && !objects[3]->marked);
     TEST_ASSERT(interval_tree_find(tree, (uintptr_t)memories[1])
                 == &objects[1]->interval);
@@ -58,14 +58,6 @@ static int test_sweep_releases_unmarked_objects(void)
     TEST_ASSERT(interval_tree_validate(tree));
 #endif
 
-    for (index = 0; index < (size_t)5; index += (size_t)2) {
-        MEMORY_BASIC_INFORMATION info;
-
-        TEST_ASSERT(VirtualQuery(memories[index], &info, sizeof info)
-                    == sizeof info);
-        TEST_ASSERT(info.State == MEM_FREE);
-    }
-
     TEST_ASSERT_EQ_INT(GC_SWEEP_OK,
                        gc_sweep(&allocations, &tree,
                                 &allocation_count, &stats));
@@ -75,7 +67,8 @@ static int test_sweep_releases_unmarked_objects(void)
     TEST_ASSERT(stats.bytes_live == (size_t)0);
     TEST_ASSERT(stats.bytes_reserved == (size_t)0);
     TEST_ASSERT(stats.bytes_collected == stats.bytes_requested);
-    for (index = 1; index < (size_t)5; index += (size_t)2) {
+    gc_allocator_destroy_all(NULL);
+    for (index = 0; index < (size_t)5; ++index) {
         MEMORY_BASIC_INFORMATION info;
 
         TEST_ASSERT(VirtualQuery(memories[index], &info, sizeof info)

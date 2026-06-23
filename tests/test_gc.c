@@ -1,6 +1,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
+#include "allocator.h"
 #include "gc_config.h"
 #include "gc.h"
 #include "gc_internal.h"
@@ -121,9 +122,14 @@ static int test_virtual_alloc_objects(void)
     unsigned char *large;
     size_t requested;
     size_t reserved;
+    size_t large_requested;
+    size_t small_reserved;
+    size_t large_reserved;
     size_t impossible_size;
     size_t initial_limit;
     MEMORY_BASIC_INFORMATION memory_info;
+    MEMORY_BASIC_INFORMATION small_info;
+    MEMORY_BASIC_INFORMATION large_info;
 
     GetSystemInfo(&system_info);
     TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_init());
@@ -144,29 +150,37 @@ static int test_virtual_alloc_objects(void)
     TEST_ASSERT(small != NULL);
     TEST_ASSERT(large != NULL);
     TEST_ASSERT((uintptr_t)small % _Alignof(long double) == (uintptr_t)0);
+    TEST_ASSERT(VirtualQuery(small, &small_info, sizeof small_info)
+                == sizeof small_info);
+    TEST_ASSERT(VirtualQuery(large, &large_info, sizeof large_info)
+                == sizeof large_info);
+    TEST_ASSERT(small_info.AllocationBase == large_info.AllocationBase);
     TEST_ASSERT(gc_internal_allocation_count() == (size_t)2);
+    TEST_ASSERT(gc_internal_get_allocation_info(small + 16,
+                                                &requested,
+                                                &small_reserved));
+    TEST_ASSERT(requested == (size_t)17);
+    TEST_ASSERT(gc_internal_get_allocation_info(large,
+                                                &requested,
+                                                &large_reserved));
+    TEST_ASSERT(requested == (size_t)system_info.dwPageSize + (size_t)1);
+    large_requested = requested;
     TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_get_stats(&stats));
     TEST_ASSERT(stats.bytes_requested
                 == (size_t)system_info.dwPageSize + (size_t)18);
     TEST_ASSERT(stats.bytes_live == stats.bytes_requested);
-    TEST_ASSERT(stats.bytes_reserved
-                == (size_t)system_info.dwPageSize * (size_t)3);
+    TEST_ASSERT(stats.bytes_reserved == small_reserved + large_reserved);
     TEST_ASSERT(stats.bytes_collected == (size_t)0);
-    TEST_ASSERT(gc_internal_get_allocation_info(small + 16,
-                                                &requested, &reserved));
-    TEST_ASSERT(requested == (size_t)17);
-    TEST_ASSERT(reserved == (size_t)system_info.dwPageSize);
+    reserved = small_reserved;
     TEST_ASSERT(!gc_internal_get_allocation_info(small + 17,
                                                  &requested, &reserved));
-    TEST_ASSERT(gc_internal_get_allocation_info(large,
-                                                &requested, &reserved));
-    TEST_ASSERT(requested == (size_t)system_info.dwPageSize + (size_t)1);
-    TEST_ASSERT(reserved == (size_t)system_info.dwPageSize * (size_t)2);
+    TEST_ASSERT(reserved == (size_t)0);
 
     TEST_ASSERT(small[0] == 0 && small[16] == 0);
-    TEST_ASSERT(large[0] == 0 && large[requested - (size_t)1] == 0);
+    TEST_ASSERT(large[0] == 0
+                && large[large_requested - (size_t)1] == 0);
     memset(small, 0x5a, 17);
-    memset(large, 0xa5, requested);
+    memset(large, 0xa5, large_requested);
     gc_shutdown();
     TEST_ASSERT_EQ_INT(GC_STATUS_OK, gc_get_status());
     TEST_ASSERT(gc_internal_allocation_count() == (size_t)0);
@@ -181,11 +195,14 @@ static int test_memory_pressure(void)
     SYSTEM_INFO system_info;
     size_t default_limit;
     size_t page_size;
+    size_t tiny_reserved;
     HANDLE thread;
     DWORD wait_result;
 
     GetSystemInfo(&system_info);
     page_size = (size_t)system_info.dwPageSize;
+    TEST_ASSERT(gc_allocator_reservation_size(1, page_size,
+                                              &tiny_reserved));
     TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_init());
     default_limit = gc_internal_memory_limit();
     TEST_ASSERT(default_limit == GC_DEFAULT_MEMORY_LIMIT);
@@ -200,18 +217,18 @@ static int test_memory_pressure(void)
     TEST_ASSERT(wait_result == WAIT_OBJECT_0);
     TEST_ASSERT_EQ_INT(GC_STATUS_WRONG_THREAD, gc_get_status());
 
-    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_set_memory_limit(page_size));
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_set_memory_limit(tiny_reserved));
     TEST_ASSERT(gc_malloc(1) != NULL);
     TEST_ASSERT(gc_internal_collection_request_count() == (size_t)0);
-    TEST_ASSERT(gc_internal_memory_limit() == page_size);
+    TEST_ASSERT(gc_internal_memory_limit() == tiny_reserved);
 
     TEST_ASSERT(gc_malloc(1) != NULL);
     TEST_ASSERT(gc_internal_collection_request_count() == (size_t)1);
-    TEST_ASSERT(gc_internal_memory_limit() == page_size * (size_t)2);
+    TEST_ASSERT(gc_internal_memory_limit() == tiny_reserved * (size_t)2);
 
     TEST_ASSERT(gc_malloc(1) != NULL);
     TEST_ASSERT(gc_internal_collection_request_count() == (size_t)2);
-    TEST_ASSERT(gc_internal_memory_limit() == page_size * (size_t)4);
+    TEST_ASSERT(gc_internal_memory_limit() == tiny_reserved * (size_t)4);
     gc_shutdown();
     TEST_ASSERT_EQ_INT(GC_STATUS_OK, gc_get_status());
     TEST_ASSERT(gc_internal_collection_request_count() == (size_t)0);
