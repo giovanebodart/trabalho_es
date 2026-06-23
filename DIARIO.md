@@ -432,6 +432,19 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Erros da IA ou sugestões rejeitadas: o commit já havia sido criado antes desta confirmação adicional; não foi criado um commit vazio.
 - Pendências e próximo passo: incorporar este registro ao Commit 19 e aguardar solicitação para o Commit 20.
 
+## 2026-06-23 00:20 — Pedido extra: visualizador do garbage collector
+
+- Prompt/objetivo: criar um visualizador interativo do coletor, acompanhado por script PowerShell, sem solicitar valores, objetos ou alvos de remoção ao usuário.
+- Fase do PLAN.md: marco complementar após o Commit 19 e antes do Commit 20.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, visualizador da árvore, API pública, implementação mark-sweep, exemplos, Makefile, estado e histórico Git.
+- Alterações realizadas: criação do grafo ASCII com menu, estados de raiz, alcançável e lixo, métricas da coleta, operações aleatórias, modo `--demo`, script debug e documentação de uso.
+- Decisões e justificativas: a ferramenta usa somente `gc.h`; mantém um modelo paralelo apenas para exibir alcançabilidade e confere seus totais com as métricas reais do coletor após cada sweep.
+- Riscos ou erros procurados: ponteiros usados após coleta, divergência entre modelo e heap, coleta de objetos vivos, retenção de lixo, ciclos, warnings, entradas manuais e incompatibilidades PowerShell/Windows.
+- Testes executados: script com `-BuildOnly` e `-Demo`, 25 demos aleatórias, build e demo específicos com ASan/UBSan, `mingw32-make clean all test sanitize stress` e verificações de whitespace.
+- Resultados: todas as execuções passaram sem warnings ou erros de sanitizador; marcação e sweep coincidiram com objetos examinados e coletados; a suíte completa permaneceu aprovada.
+- Erros da IA ou sugestões rejeitadas: a primeira versão excedia o limite de linhas e foi simplificada; uma checagem inicial com `git diff --no-index` interpretou o código 1 esperado como falha e foi repetida corretamente.
+- Pendências e próximo passo: revisar o diff final e criar um commit complementar somente após autorização; depois retomar o Commit 20.
+
 ## 2026-06-23 00:51 - Varredura conservadora da pilha
 
 - Prompt/objetivo: implementar, validar e criar o Commit 20.

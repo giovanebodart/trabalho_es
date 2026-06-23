@@ -84,6 +84,10 @@ Use `-Demo` para executar uma sequência automática ou `-BuildOnly` para apenas
 compilar. O script usa GCC em modo debug com as mesmas flags estritas do
 projeto, além de símbolos, otimização desativada e frame pointers preservados.
 
+## Visualizador do coletor
+
+O visualizador ASCII mostra raizes, referencias, objetos alcancaveis, lixo e metricas da pausa com `.\scripts\run_gc_visualizer.ps1`; dados e remocoes sao aleatorios. Use `-Demo` para uma sequencia automatica ou `-BuildOnly` para somente compilar em debug.
+
 ## Estado atual
 
 O repositório está na Fase 4, com o Commit 20 concluído. O módulo
