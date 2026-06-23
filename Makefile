@@ -17,10 +17,13 @@ TEST_NAMES := test_assertions test_gc test_interval_tree test_marker \
 	test_smoke test_sweeper
 TEST_BINS := $(addprefix $(BUILD_DIR)/,$(addsuffix $(EXEEXT),$(TEST_NAMES)))
 SANITIZE_BINS := $(addprefix $(SANITIZE_DIR)/,$(addsuffix $(EXEEXT),$(TEST_NAMES)))
+EXAMPLE_NAMES := list tree cyclic_graph
+EXAMPLE_BINS := $(addprefix $(BUILD_DIR)/example_,$(addsuffix $(EXEEXT),$(EXAMPLE_NAMES)))
+SANITIZE_EXAMPLE_BINS := $(addprefix $(SANITIZE_DIR)/example_,$(addsuffix $(EXEEXT),$(EXAMPLE_NAMES)))
 
 .PHONY: all test stress sanitize clean
 
-all: $(TEST_BINS)
+all: $(TEST_BINS) $(EXAMPLE_BINS)
 
 $(BUILD_DIR):
 	$(MKDIR_BUILD)
@@ -86,23 +89,37 @@ $(SANITIZE_DIR)/test_gc$(EXEEXT): tests/test_gc.c $(GC_SOURCES) $(GC_HEADERS) \
 	$(SAN_CC) $(SAN_FLAGS) -Iinclude -Isrc -Itests tests/test_gc.c \
 		$(GC_SOURCES) -o $@
 
-test: $(TEST_BINS)
+$(BUILD_DIR)/example_%$(EXEEXT): examples/%.c $(GC_SOURCES) $(GC_HEADERS) \
+		| $(BUILD_DIR)
+	$(CC) $(CFLAGS) -Iinclude -Isrc $< $(GC_SOURCES) -o $@
+
+$(SANITIZE_DIR)/example_%$(EXEEXT): examples/%.c $(GC_SOURCES) $(GC_HEADERS) \
+		| $(SANITIZE_DIR)
+	$(SAN_CC) $(SAN_FLAGS) -Iinclude -Isrc $< $(GC_SOURCES) -o $@
+
+test: $(TEST_BINS) $(EXAMPLE_BINS)
 	$(BUILD_DIR)/test_assertions$(EXEEXT)
 	$(BUILD_DIR)/test_gc$(EXEEXT)
 	$(BUILD_DIR)/test_interval_tree$(EXEEXT)
 	$(BUILD_DIR)/test_marker$(EXEEXT)
 	$(BUILD_DIR)/test_smoke$(EXEEXT)
 	$(BUILD_DIR)/test_sweeper$(EXEEXT)
+	$(BUILD_DIR)/example_list$(EXEEXT)
+	$(BUILD_DIR)/example_tree$(EXEEXT)
+	$(BUILD_DIR)/example_cyclic_graph$(EXEEXT)
 
 stress: test
 
-sanitize: $(SANITIZE_BINS)
+sanitize: $(SANITIZE_BINS) $(SANITIZE_EXAMPLE_BINS)
 	set "PATH=$(SAN_RUNTIME_DIR);%PATH%" && $(subst /,\,$(SANITIZE_DIR)/test_assertions$(EXEEXT))
 	set "PATH=$(SAN_RUNTIME_DIR);%PATH%" && $(subst /,\,$(SANITIZE_DIR)/test_gc$(EXEEXT))
 	set "PATH=$(SAN_RUNTIME_DIR);%PATH%" && $(subst /,\,$(SANITIZE_DIR)/test_interval_tree$(EXEEXT))
 	set "PATH=$(SAN_RUNTIME_DIR);%PATH%" && $(subst /,\,$(SANITIZE_DIR)/test_marker$(EXEEXT))
 	set "PATH=$(SAN_RUNTIME_DIR);%PATH%" && $(subst /,\,$(SANITIZE_DIR)/test_smoke$(EXEEXT))
 	set "PATH=$(SAN_RUNTIME_DIR);%PATH%" && $(subst /,\,$(SANITIZE_DIR)/test_sweeper$(EXEEXT))
+	set "PATH=$(SAN_RUNTIME_DIR);%PATH%" && $(subst /,\,$(SANITIZE_DIR)/example_list$(EXEEXT))
+	set "PATH=$(SAN_RUNTIME_DIR);%PATH%" && $(subst /,\,$(SANITIZE_DIR)/example_tree$(EXEEXT))
+	set "PATH=$(SAN_RUNTIME_DIR);%PATH%" && $(subst /,\,$(SANITIZE_DIR)/example_cyclic_graph$(EXEEXT))
 
 clean:
 	$(CLEAN_BUILD)

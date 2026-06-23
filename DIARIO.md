@@ -405,3 +405,29 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: GCC e Clang compilaram sem warnings; teste integrado, suíte normal, stress, ASan/UBSan e variante `NDEBUG` passaram; um ciclo de dois objetos alcançável por raiz interior foi preservado e um terceiro objeto foi recuperado; após remover a raiz, o ciclo foi recolhido; as métricas registraram os objetos examinados e recuperados; o executável importa `QueryPerformanceCounter` e `QueryPerformanceFrequency`; Dr. Memory não foi executado porque permanece incompatível com o Windows atual.
 - Erros da IA ou sugestões rejeitadas: nenhum identificado.
 - Pendências e próximo passo: auditar e criar o commit `feat(gc): integra ciclo mark-sweep`; as alterações preexistentes do usuário em `.gitignore` e `src/marker.h` permanecerão fora do staging.
+
+## 2026-06-22 23:56 — Programas-cobaia de estruturas e ciclos
+
+- Prompt/objetivo: implementar, validar e criar o Commit 19.
+- Fase do PLAN.md: Fase 3 — Mark-sweep com raízes explícitas; Commit 19.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, API pública, estatísticas, exemplos existentes, Makefile, estado e histórico Git.
+- Alterações realizadas: criação dos programas-cobaia de lista, árvore binária e grafo cíclico; integração dos executáveis aos alvos `all`, `test`, `stress` e `sanitize`.
+- Decisões e justificativas: os exemplos utilizam somente `gc.h`, tornando-os demonstrações reais da interface cliente; cada cenário executa uma coleta com raiz e outra sem raiz; as métricas verificam objetos examinados, recuperados e bytes vivos; o grafo contém ciclo, referências cruzadas e autorreferência para demonstrar que ciclos mortos não dependem de contagem de referências.
+- Riscos ou erros procurados: estrutura viva coletada, ciclo morto retido, ponteiros não inicializados, resultados dependentes da pilha, divergência entre métricas e objetos, warnings nos programas e integração incompleta aos sanitizadores.
+- Testes executados: `mingw32-make clean`, `mingw32-make all`, execução individual dos três exemplos, `mingw32-make test`, `mingw32-make sanitize`, `mingw32-make stress`, compilação e execução com `-DNDEBUG` e `git diff --check`.
+- Resultados: GCC e Clang compilaram sem warnings; lista com cinco nós, árvore com sete nós e grafo com quatro nós foram preservados enquanto enraizados e integralmente recuperados após zerar a raiz; todos os testes, stress, ASan/UBSan e build `NDEBUG` passaram; Dr. Memory não foi executado porque permanece incompatível com o Windows atual.
+- Erros da IA ou sugestões rejeitadas: nenhum identificado.
+- Pendências e próximo passo: auditar e criar o commit `test(gc): adiciona programas-cobaia e ciclos`; as alterações preexistentes do usuário em `.gitignore` e `src/marker.h` permanecerão fora do staging.
+
+## 2026-06-22 23:59 — Confirmação da mensagem do Commit 19
+
+- Prompt/objetivo: criar o commit com a mensagem indicada.
+- Fase do PLAN.md: Fase 3 — Mark-sweep com raízes explícitas; fechamento do Commit 19.
+- Arquivos examinados: histórico Git, commit atual, estado da árvore e alterações não commitadas.
+- Alterações realizadas: confirmação da mensagem `test(gc): adiciona programas-cobaia e ciclos` e registro desta solicitação no diário.
+- Decisões e justificativas: o commit funcional já havia sido criado com a mensagem exata; para evitar um commit vazio, somente este registro será incorporado ao mesmo commit por amend.
+- Riscos ou erros procurados: duplicação de commit, alteração involuntária da mensagem e inclusão das mudanças preexistentes em `.gitignore` e `src/marker.h`.
+- Testes executados: inspeção do hash, assunto do commit e diff dos arquivos não commitados; nenhum teste de código foi repetido porque não houve alteração funcional.
+- Resultados: mensagem confirmada e mudanças do usuário mantidas fora do staging.
+- Erros da IA ou sugestões rejeitadas: o commit já havia sido criado antes desta confirmação adicional; não foi criado um commit vazio.
+- Pendências e próximo passo: incorporar este registro ao Commit 19 e aguardar solicitação para o Commit 20.

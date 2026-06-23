@@ -86,15 +86,15 @@ projeto, além de símbolos, otimização desativada e frame pointers preservado
 
 ## Estado atual
 
-O repositório está na Fase 3, Commit 18, definida em `PLAN.md`. `gc_collect()`
-localiza os valores atuais das raízes explícitas, marca iterativamente os
-objetos alcançáveis, varre suas referências conservadoras e executa o sweep.
-A pausa total é medida com `QueryPerformanceCounter()`, e `gc_get_stats()`
-informa objetos examinados e recuperados, quantidade de coletas, ticks da
-última pausa e frequência do contador.
+O repositório está na Fase 3, Commit 19, definida em `PLAN.md`. Os programas
+`example_list`, `example_tree` e `example_cyclic_graph` exercitam o coletor
+somente pela API pública. Cada programa comprova que a estrutura enraizada é
+preservada e que seus objetos são recuperados após a raiz ser zerada. O grafo
+inclui ciclos, referências cruzadas e autorreferência.
 
-O próximo passo é o Commit 19: adicionar programas-cobaia de lista, árvore e
-grafo cíclico.
+Os exemplos são compilados por `mingw32-make all` e executados por `test`,
+`stress` e `sanitize`. O próximo passo é o Commit 20: implementar a varredura
+automática da pilha.
 
 ## Documentação do desenvolvimento
 
