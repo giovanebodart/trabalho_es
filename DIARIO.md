@@ -379,3 +379,16 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: revisão aprovada e autorização explícita recebida para criar o Commit 16.
 - Erros da IA ou sugestões rejeitadas: nenhum identificado nesta etapa.
 - Pendências e próximo passo: criar o commit e iniciar o sweep do Commit 17 somente após nova solicitação.
+
+## 2026-06-22 21:59 — Sweep de objetos não marcados
+
+- Prompt/objetivo: implementar, validar e criar o Commit 17.
+- Fase do PLAN.md: Fase 3 — Mark-sweep com raízes explícitas; Commit 17.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, alocador, AVL, estatísticas, fila de marcação, testes, Makefile, estado e histórico Git.
+- Alterações realizadas: criação do módulo `sweeper`, liberação individual no alocador, percurso seguro pela lista de objetos, remoção da AVL, atualização das estatísticas, limpeza das marcas sobreviventes e teste específico.
+- Decisões e justificativas: a lista encadeada é percorrida com ponteiro para ponteiro, evitando usar um iterador da AVL durante remoções; lista, contagem, bytes e presença de cada objeto na árvore são validados antes da mutação; em falha de `VirtualFree()`, o intervalo removido é reinserido e o objeto permanece rastreado.
+- Riscos ou erros procurados: invalidação do percurso, use-after-free, perda do próximo nó, árvore e lista divergentes, underflow ou overflow de estatísticas, marca residual, remoção do metadado errado, falha de liberação e mapeamento ainda acessível após coleta.
+- Testes executados: `mingw32-make clean`, `mingw32-make all`, teste específico `build\test_sweeper.exe`, `mingw32-make test`, `mingw32-make sanitize`, `mingw32-make stress`, compilação com `-DNDEBUG` e `git diff --check`.
+- Resultados: GCC e Clang compilaram sem warnings; teste específico, suíte normal, stress, ASan/UBSan e variante `NDEBUG` passaram; três objetos não marcados foram removidos e dois sobreviventes tiveram as marcas limpas; a segunda passagem recolheu os sobreviventes; todos os mapeamentos ficaram `MEM_FREE`, a AVL permaneceu válida e as estatísticas fecharam; Dr. Memory não foi executado porque permanece incompatível com o Windows atual.
+- Erros da IA ou sugestões rejeitadas: nenhum identificado na implementação; a interrupção anterior ocorreu antes de qualquer alteração do Commit 17.
+- Pendências e próximo passo: criar o commit `feat(gc): implementa sweep de objetos não marcados`; as alterações preexistentes do usuário em `.gitignore` e `src/marker.h` serão preservadas fora do staging.

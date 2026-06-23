@@ -86,14 +86,14 @@ projeto, além de símbolos, otimização desativada e frame pointers preservado
 
 ## Estado atual
 
-O repositório está na Fase 3, Commit 16, definida em `PLAN.md`. A marcação
-varre cada objeto byte a byte e lê candidatos com `memcpy()`, evitando acesso
-desalinhado. Cada valor é consultado na árvore de intervalos; ponteiros para o
-início ou interior de objetos são enfileirados, enquanto valores externos são
-ignorados. Como a análise é conservadora, inteiros que coincidam com endereços
-gerenciados podem preservar objetos sem causar coleta incorreta.
+O repositório está na Fase 3, Commit 17, definida em `PLAN.md`. O sweep percorre
+a lista de alocações, preserva objetos marcados e limpa suas marcas para o
+próximo ciclo. Objetos não marcados são removidos da AVL e liberados com
+`VirtualFree()`, atualizando bytes vivos, reservados e coletados. Lista,
+árvore e estatísticas são validadas antes de qualquer alteração.
 
-O próximo passo é o Commit 17: implementar o sweep dos objetos não marcados.
+O próximo passo é o Commit 18: integrar raízes, marcação e sweep em
+`gc_collect()`.
 
 ## Documentação do desenvolvimento
 

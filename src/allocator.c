@@ -162,6 +162,16 @@ bool gc_allocator_corrupt_canary(GCAllocation *allocation,
 #endif
 }
 
+bool gc_allocator_destroy_one(GCAllocation *allocation)
+{
+    if (allocation == NULL
+        || !VirtualFree(allocation->mapping, 0, MEM_RELEASE)) {
+        return false;
+    }
+    free(allocation);
+    return true;
+}
+
 void gc_allocator_destroy_all(GCAllocation *allocation)
 {
     while (allocation != NULL) {
