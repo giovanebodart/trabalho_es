@@ -509,3 +509,29 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: autorizacao explicita recebida para criar o commit com a mensagem indicada.
 - Erros da IA ou sugestoes rejeitadas: nenhum identificado nesta etapa.
 - Pendencias e proximo passo: criar o Commit 21 e, apos nova solicitacao, iniciar o Commit 22 para integrar raizes automaticas em `gc_collect()`.
+
+## 2026-06-23 16:40 - Integracao de raizes automaticas
+
+- Prompt/objetivo: prosseguir para o Commit 22 e integrar pilha, registradores e raizes explicitas em `gc_collect()`.
+- Fase do PLAN.md: Fase 4 - Pilha e registradores; Commit 22.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, `gc.c`, `stack_roots`, `register_roots`, `test_gc`, exemplos, visualizador, Makefile, estado e historico Git.
+- Alteracoes realizadas: `gc_collect()` passou a marcar raizes explicitas, registradores e pilha antes do processamento da fila; testes e exemplos foram ajustados para a semantica conservadora; o visualizador agora mantem o modelo fora da pilha e compila com as novas fontes.
+- Decisoes e justificativas: falsos positivos sao aceitos como retencao temporaria, nao como erro; por isso os exemplos validam consistencia das metricas quando algum lixo fica retido por padroes de bits na pilha ou em registradores.
+- Riscos ou erros procurados: coleta de objeto vivo, dependencia de layout de `jmp_buf`, leitura desalinhada, duplicatas na fila, pilha do proprio coletor retendo objetos, metricas inconsistentes, testes antigos exigindo coleta exata e script com lista de fontes desatualizada.
+- Testes executados: `mingw32-make clean`, `mingw32-make all`, `mingw32-make test`, `mingw32-make sanitize`, `mingw32-make stress`, `.\scripts\run_gc_visualizer.ps1 -BuildOnly`, `.\scripts\run_gc_visualizer.ps1 -Demo`, compilacao de `test_gc` com `-DNDEBUG` e `git diff --check`.
+- Resultados: build, suite normal, ASan/UBSan, stress, visualizador e whitespace passaram; `test_gc` com `-DNDEBUG` compilou, mas sua execucao nao se aplica porque `test_debug_canaries` exige canarios de debug removidos por `NDEBUG`.
+- Erros da IA ou sugestoes rejeitadas: a primeira validacao exigia coleta exata de objetos ainda referenciados por variaveis locais; os testes foram corrigidos para representar a coleta conservadora.
+- Pendencias e proximo passo: revisar o diff final e criar o commit `feat(gc): integra raizes automaticas`; o Commit 23 deve iniciar arenas para reduzir o custo de um `VirtualAlloc()` por objeto.
+
+## 2026-06-23 16:43 - Criacao do Commit 22
+
+- Prompt/objetivo: criar o Commit 22 com a mensagem indicada.
+- Fase do PLAN.md: Fase 4 - Pilha e registradores; fechamento do Commit 22.
+- Arquivos examinados: estado Git, diff final, limites de linhas e arquivos do Commit 22.
+- Alteracoes realizadas: registro da autorizacao e preparacao do commit `feat(gc): integra raizes automaticas`.
+- Decisoes e justificativas: o staging sera restrito ao Commit 22; `.gitignore` e `src/marker.h` permanecerao fora.
+- Riscos ou erros procurados: staging acidental, excesso de linhas, whitespace invalido e inclusao de artefatos.
+- Testes executados: repeticao de `mingw32-make clean`, `all`, `test`, `sanitize`, `stress`, visualizador `-BuildOnly` e `-Demo`, e `git diff --check`.
+- Resultados: validacao final aprovada e autorizacao explicita recebida para criar o commit com a mensagem indicada.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado nesta etapa.
+- Pendencias e proximo passo: criar o Commit 22; depois iniciar o Commit 23 somente apos nova solicitacao.

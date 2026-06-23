@@ -3,11 +3,17 @@
 #include <conio.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <windows.h>
 enum { OBJECT_COUNT = 10, ROOT_COUNT = 2, EDGE_COUNT = 2 };
+#if defined(__GNUC__)
+#define GC_VIS_NOINLINE __attribute__((noinline))
+#else
+#define GC_VIS_NOINLINE
+#endif
 typedef struct Object {
     struct Object *edge[EDGE_COUNT];
 } Object;
@@ -19,6 +25,13 @@ typedef struct {
     bool valid;
 } Demo;
 typedef void (*Action)(Demo *, char *, size_t);
+static GC_VIS_NOINLINE void scrub_stack_roots(void) {
+    volatile uintptr_t noise[256];
+    size_t index;
+    for (index = 0; index < sizeof noise / sizeof noise[0]; ++index) {
+        noise[index] = (uintptr_t)0;
+    }
+}
 static size_t object_index(const Demo *demo, const void *pointer) {
     size_t index;
     for (index = 0; index < OBJECT_COUNT; ++index) {
@@ -202,6 +215,7 @@ static void collect_now(Demo *demo, char *message, size_t size) {
     size_t collected = 0;
     size_t index;
     GCStats stats;
+    scrub_stack_roots();
     gc_collect();
     if (gc_get_status() != GC_STATUS_OK
         || gc_get_stats(&stats) != GC_SUCCESS) {
@@ -265,36 +279,44 @@ int main(int argc, char **argv) {
     static Action actions[] = {
         grow_random, mutate_random, discard_random, collect_now
     };
-    Demo demo = {0};
+    Demo *demo;
     char message[128] = "pronto";
     int key;
     srand((unsigned int)time(NULL) ^ (unsigned int)GetCurrentProcessId());
-    if (!reset_demo(&demo, message, sizeof message)) {
+    demo = calloc((size_t)1, sizeof *demo);
+    if (demo == NULL) {
+        return EXIT_FAILURE;
+    }
+    if (!reset_demo(demo, message, sizeof message)) {
+        free(demo);
         return EXIT_FAILURE;
     }
     if (argc == 2 && strcmp(argv[1], "--demo") == 0) {
-        int result = run_demo(&demo) ? EXIT_SUCCESS : EXIT_FAILURE;
+        int result = run_demo(demo) ? EXIT_SUCCESS : EXIT_FAILURE;
         gc_shutdown();
+        free(demo);
         return result;
     }
     for (;;) {
         (void)system("cls");
-        render(&demo, message);
+        render(demo, message);
         key = _getch();
         if (key == '0') {
             break;
         }
         if (key >= '1' && key <= '4') {
-            actions[key - '1'](&demo, message, sizeof message);
+            actions[key - '1'](demo, message, sizeof message);
         } else if (key == '5') {
-            demo.valid = reset_demo(&demo, message, sizeof message);
+            demo->valid = reset_demo(demo, message, sizeof message);
         } else if (key == '6') {
-            demo.valid = run_demo(&demo);
+            demo->valid = run_demo(demo);
             fputs("Pressione uma tecla para voltar ao menu...", stdout);
             (void)_getch();
         }
     }
     gc_shutdown();
     puts("\nVisualizador encerrado.");
-    return demo.valid ? EXIT_SUCCESS : EXIT_FAILURE;
+    key = demo->valid ? EXIT_SUCCESS : EXIT_FAILURE;
+    free(demo);
+    return key;
 }

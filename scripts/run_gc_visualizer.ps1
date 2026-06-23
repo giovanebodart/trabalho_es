@@ -8,7 +8,8 @@ $include = Join-Path $root "include"
 $source = Join-Path $root "src"
 $compiler = (Get-Command gcc -ErrorAction Stop).Source
 $gcSources = @(
-    "gc.c", "allocator.c", "interval_tree.c", "marker.c", "roots.c", "sweeper.c"
+    "gc.c", "allocator.c", "interval_tree.c", "marker.c",
+    "register_roots.c", "roots.c", "stack_roots.c", "sweeper.c"
 ) | ForEach-Object { Join-Path $source $_ }
 New-Item -ItemType Directory -Path $build -Force | Out-Null
 $arguments = @(

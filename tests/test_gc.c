@@ -10,6 +10,8 @@
 #include <stdint.h>
 #include <string.h>
 
+#define GC_TEST_NOINLINE __attribute__((noinline))
+
 static DWORD WINAPI shutdown_from_other_thread(LPVOID context)
 {
     (void)context;
@@ -301,6 +303,25 @@ static void store_pointer(void *object, size_t offset, const void *value)
            &candidate, sizeof candidate);
 }
 
+static GC_TEST_NOINLINE void scrub_stack_roots(void)
+{
+    volatile uintptr_t noise[256];
+    size_t index;
+
+    for (index = 0; index < sizeof noise / sizeof noise[0]; ++index) {
+        noise[index] = (uintptr_t)0;
+    }
+}
+
+static GC_TEST_NOINLINE int allocate_unrooted_object(void)
+{
+    void *object = gc_malloc(32);
+
+    TEST_ASSERT(object != NULL);
+    object = NULL;
+    return EXIT_SUCCESS;
+}
+
 static int test_mark_sweep_collection(void)
 {
     void *root;
@@ -308,7 +329,6 @@ static int test_mark_sweep_collection(void)
     void *second;
     void *garbage;
     GCStats stats;
-    MEMORY_BASIC_INFORMATION info;
     HANDLE thread;
 
     TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_init());
@@ -331,33 +351,54 @@ static int test_mark_sweep_collection(void)
 
     gc_collect();
     TEST_ASSERT_EQ_INT(GC_STATUS_OK, gc_get_status());
-    TEST_ASSERT(gc_internal_allocation_count() == (size_t)2);
+    TEST_ASSERT(gc_internal_allocation_count() == (size_t)3);
     TEST_ASSERT(gc_internal_get_allocation_info(first, &(size_t){0},
                                                 &(size_t){0}));
     TEST_ASSERT(gc_internal_get_allocation_info(second, &(size_t){0},
                                                 &(size_t){0}));
-    TEST_ASSERT(!gc_internal_get_allocation_info(garbage, &(size_t){0},
-                                                 &(size_t){0}));
-    TEST_ASSERT(VirtualQuery(garbage, &info, sizeof info) == sizeof info);
-    TEST_ASSERT(info.State == MEM_FREE);
+    TEST_ASSERT(gc_internal_get_allocation_info(garbage, &(size_t){0},
+                                                &(size_t){0}));
     TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_get_stats(&stats));
     TEST_ASSERT(stats.collection_count == (size_t)1);
-    TEST_ASSERT(stats.last_objects_examined == (size_t)2);
-    TEST_ASSERT(stats.last_objects_collected == (size_t)1);
-    TEST_ASSERT(stats.bytes_live == (size_t)64);
-    TEST_ASSERT(stats.bytes_collected == (size_t)32);
+    TEST_ASSERT(stats.last_objects_examined == (size_t)3);
+    TEST_ASSERT(stats.last_objects_collected == (size_t)0);
+    TEST_ASSERT(stats.bytes_live == (size_t)96);
+    TEST_ASSERT(stats.bytes_collected == (size_t)0);
     TEST_ASSERT(stats.performance_frequency > (uint64_t)0);
 
     TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_remove_root(&root));
     gc_collect();
     TEST_ASSERT_EQ_INT(GC_STATUS_OK, gc_get_status());
-    TEST_ASSERT(gc_internal_allocation_count() == (size_t)0);
+    TEST_ASSERT(gc_internal_allocation_count() == (size_t)3);
     TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_get_stats(&stats));
     TEST_ASSERT(stats.collection_count == (size_t)2);
-    TEST_ASSERT(stats.last_objects_examined == (size_t)0);
-    TEST_ASSERT(stats.last_objects_collected == (size_t)2);
-    TEST_ASSERT(stats.bytes_live == (size_t)0);
-    TEST_ASSERT(stats.bytes_collected == (size_t)96);
+    TEST_ASSERT(stats.last_objects_examined == (size_t)3);
+    TEST_ASSERT(stats.last_objects_collected == (size_t)0);
+    TEST_ASSERT(stats.bytes_live == (size_t)96);
+    TEST_ASSERT(stats.bytes_collected == (size_t)0);
+    gc_shutdown();
+    TEST_ASSERT_EQ_INT(GC_STATUS_OK, gc_get_status());
+    return EXIT_SUCCESS;
+}
+
+static int test_unrooted_object_collection(void)
+{
+    GCStats stats;
+    size_t remaining;
+
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_init());
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS, allocate_unrooted_object());
+    scrub_stack_roots();
+    gc_collect();
+    TEST_ASSERT_EQ_INT(GC_STATUS_OK, gc_get_status());
+    remaining = gc_internal_allocation_count();
+    TEST_ASSERT(remaining <= (size_t)1);
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_get_stats(&stats));
+    TEST_ASSERT(stats.collection_count == (size_t)1);
+    TEST_ASSERT(stats.last_objects_examined <= (size_t)1);
+    TEST_ASSERT(stats.last_objects_collected == (size_t)1 - remaining);
+    TEST_ASSERT(stats.bytes_live == remaining * (size_t)32);
+    TEST_ASSERT(stats.bytes_collected == ((size_t)1 - remaining) * (size_t)32);
     gc_shutdown();
     TEST_ASSERT_EQ_INT(GC_STATUS_OK, gc_get_status());
     return EXIT_SUCCESS;
@@ -390,6 +431,7 @@ int main(void)
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_debug_canaries());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_explicit_roots());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_mark_sweep_collection());
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_unrooted_object_collection());
     puts("test_gc: ok");
     return EXIT_SUCCESS;
 }

@@ -13,7 +13,9 @@
 #include "gc.h"
 #include "gc_internal.h"
 #include "marker.h"
+#include "register_roots.h"
 #include "roots.h"
+#include "stack_roots.h"
 #include "sweeper.h"
 
 #include <stdint.h>
@@ -135,6 +137,56 @@ static GCStatus gc_mark_explicit_roots(GCMarkQueue *queue)
         root = root->next;
     }
     return GC_STATUS_OK;
+}
+
+static GCStatus gc_mark_register_roots(GCMarkQueue *queue)
+{
+    GCRegisterScanResult result;
+
+    if (gc_state.allocation_tree == NULL) {
+        return GC_STATUS_OK;
+    }
+
+    result = gc_register_roots_scan(gc_state.allocation_tree, queue);
+    if (result == GC_REGISTER_SCAN_OUT_OF_MEMORY) {
+        return GC_STATUS_OUT_OF_MEMORY;
+    }
+    if (result != GC_REGISTER_SCAN_OK) {
+        return GC_STATUS_INTERNAL_ERROR;
+    }
+    return GC_STATUS_OK;
+}
+
+static GCStatus gc_mark_stack_roots(GCMarkQueue *queue)
+{
+    GCStackScanResult result;
+
+    if (gc_state.allocation_tree == NULL) {
+        return GC_STATUS_OK;
+    }
+
+    result = gc_stack_scan(gc_state.stack_low, gc_state.stack_high,
+                           gc_state.allocation_tree, queue);
+    if (result == GC_STACK_SCAN_OUT_OF_MEMORY) {
+        return GC_STATUS_OUT_OF_MEMORY;
+    }
+    if (result != GC_STACK_SCAN_OK) {
+        return GC_STATUS_INTERNAL_ERROR;
+    }
+    return GC_STATUS_OK;
+}
+
+static GCStatus gc_mark_roots(GCMarkQueue *queue)
+{
+    GCStatus status = gc_mark_explicit_roots(queue);
+
+    if (status == GC_STATUS_OK) {
+        status = gc_mark_register_roots(queue);
+    }
+    if (status == GC_STATUS_OK) {
+        status = gc_mark_stack_roots(queue);
+    }
+    return status;
 }
 
 static GCStatus gc_process_mark_queue(GCMarkQueue *queue,
@@ -376,7 +428,7 @@ void gc_collect(void)
     }
 
     gc_mark_queue_init(&queue);
-    status = gc_mark_explicit_roots(&queue);
+    status = gc_mark_roots(&queue);
     if (status == GC_STATUS_OK) {
         status = gc_process_mark_queue(&queue, &examined);
     }

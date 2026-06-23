@@ -90,14 +90,15 @@ O visualizador ASCII mostra raizes, referencias, objetos alcancaveis, lixo e met
 
 ## Estado atual
 
-O repositório está na Fase 4, com o Commit 21 implementado. O módulo
-`stack_roots` detecta experimentalmente a direção de crescimento da pilha, e o
-módulo `register_roots` salva o contexto com `setjmp()` para examinar o
-`jmp_buf` como uma região conservadora de candidatos.
+O repositório está na Fase 4, com o Commit 22 implementado. `gc_collect()`
+combina raízes explícitas, registradores salvos com `setjmp()` e varredura
+conservadora da pilha capturada no `gc_init()`.
 
-As raízes automáticas de pilha e registradores ainda não participam de
-`gc_collect()`: essa integração ocorrerá no Commit 22. Até lá, os módulos são
-validados isoladamente para reduzir dependência de detalhes frágeis da ABI.
+Por ser conservador, o coletor pode reter objetos mortos quando algum padrão de
+bits na pilha ou nos registradores parece apontar para o heap gerenciado. Isso é
+um falso positivo esperado: aumenta retenção temporária, mas evita coletar um
+objeto vivo por engano. Testes e exemplos limpam ponteiros auxiliares antes de
+esperar coleta exata.
 
 ## Documentação do desenvolvimento
 
