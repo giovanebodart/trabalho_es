@@ -31,6 +31,13 @@ static DWORD WINAPI add_root_from_other_thread(LPVOID context)
     return 0;
 }
 
+static DWORD WINAPI collect_from_other_thread(LPVOID context)
+{
+    (void)context;
+    gc_collect();
+    return 0;
+}
+
 static int test_invalid_state_transitions(void)
 {
     gc_shutdown();
@@ -286,11 +293,83 @@ static int test_explicit_roots(void)
     return EXIT_SUCCESS;
 }
 
+static void store_pointer(void *object, size_t offset, const void *value)
+{
+    uintptr_t candidate = (uintptr_t)value;
+
+    memcpy((unsigned char *)object + offset,
+           &candidate, sizeof candidate);
+}
+
+static int test_mark_sweep_collection(void)
+{
+    void *root;
+    void *first;
+    void *second;
+    void *garbage;
+    GCStats stats;
+    MEMORY_BASIC_INFORMATION info;
+    HANDLE thread;
+
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_init());
+    first = gc_malloc(32);
+    second = gc_malloc(32);
+    garbage = gc_malloc(32);
+    TEST_ASSERT(first != NULL && second != NULL && garbage != NULL);
+    store_pointer(first, 1, (unsigned char *)second + 5);
+    store_pointer(second, 3, (unsigned char *)first + 7);
+    root = (unsigned char *)first + 4;
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_add_root(&root));
+
+    thread = CreateThread(NULL, 0, collect_from_other_thread,
+                          NULL, 0, NULL);
+    TEST_ASSERT(thread != NULL);
+    TEST_ASSERT(WaitForSingleObject(thread, INFINITE) == WAIT_OBJECT_0);
+    TEST_ASSERT(CloseHandle(thread));
+    TEST_ASSERT_EQ_INT(GC_STATUS_WRONG_THREAD, gc_get_status());
+    TEST_ASSERT(gc_internal_allocation_count() == (size_t)3);
+
+    gc_collect();
+    TEST_ASSERT_EQ_INT(GC_STATUS_OK, gc_get_status());
+    TEST_ASSERT(gc_internal_allocation_count() == (size_t)2);
+    TEST_ASSERT(gc_internal_get_allocation_info(first, &(size_t){0},
+                                                &(size_t){0}));
+    TEST_ASSERT(gc_internal_get_allocation_info(second, &(size_t){0},
+                                                &(size_t){0}));
+    TEST_ASSERT(!gc_internal_get_allocation_info(garbage, &(size_t){0},
+                                                 &(size_t){0}));
+    TEST_ASSERT(VirtualQuery(garbage, &info, sizeof info) == sizeof info);
+    TEST_ASSERT(info.State == MEM_FREE);
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_get_stats(&stats));
+    TEST_ASSERT(stats.collection_count == (size_t)1);
+    TEST_ASSERT(stats.last_objects_examined == (size_t)2);
+    TEST_ASSERT(stats.last_objects_collected == (size_t)1);
+    TEST_ASSERT(stats.bytes_live == (size_t)64);
+    TEST_ASSERT(stats.bytes_collected == (size_t)32);
+    TEST_ASSERT(stats.performance_frequency > (uint64_t)0);
+
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_remove_root(&root));
+    gc_collect();
+    TEST_ASSERT_EQ_INT(GC_STATUS_OK, gc_get_status());
+    TEST_ASSERT(gc_internal_allocation_count() == (size_t)0);
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_get_stats(&stats));
+    TEST_ASSERT(stats.collection_count == (size_t)2);
+    TEST_ASSERT(stats.last_objects_examined == (size_t)0);
+    TEST_ASSERT(stats.last_objects_collected == (size_t)2);
+    TEST_ASSERT(stats.bytes_live == (size_t)0);
+    TEST_ASSERT(stats.bytes_collected == (size_t)96);
+    gc_shutdown();
+    TEST_ASSERT_EQ_INT(GC_STATUS_OK, gc_get_status());
+    return EXIT_SUCCESS;
+}
+
 int main(void)
 {
-    GCStats stats = {1, 1, 1, 1};
+    GCStats stats = {0};
 
     TEST_ASSERT(gc_malloc(8) == NULL);
+    TEST_ASSERT_EQ_INT(GC_STATUS_NOT_INITIALIZED, gc_get_status());
+    gc_collect();
     TEST_ASSERT_EQ_INT(GC_STATUS_NOT_INITIALIZED, gc_get_status());
     TEST_ASSERT_EQ_INT(GC_FAILURE, gc_set_memory_limit(4096));
     TEST_ASSERT_EQ_INT(GC_STATUS_NOT_INITIALIZED, gc_get_status());
@@ -310,6 +389,7 @@ int main(void)
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_memory_pressure());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_debug_canaries());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_explicit_roots());
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_mark_sweep_collection());
     puts("test_gc: ok");
     return EXIT_SUCCESS;
 }

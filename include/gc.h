@@ -21,7 +21,8 @@ typedef enum {
     GC_STATUS_INTERNAL_ERROR,
     GC_STATUS_CORRUPTED_MEMORY,
     GC_STATUS_DUPLICATE_ROOT,
-    GC_STATUS_ROOT_NOT_FOUND
+    GC_STATUS_ROOT_NOT_FOUND,
+    GC_STATUS_TIMER_ERROR
 } GCStatus;
 
 int gc_init(void);
@@ -30,6 +31,7 @@ int gc_set_memory_limit(size_t bytes);
 int gc_get_stats(GCStats *out);
 int gc_add_root(void **root);
 int gc_remove_root(void **root);
+void gc_collect(void);
 void gc_shutdown(void);
 
 bool gc_is_initialized(void);

@@ -11,7 +11,7 @@ static int test_sweep_releases_unmarked_objects(void)
     void *memories[5];
     GCAllocation *allocations = NULL;
     IntervalNode *tree = NULL;
-    GCStats stats = {0, 0, 0, 0};
+    GCStats stats = {0};
     SYSTEM_INFO system_info;
     size_t allocation_count = 0;
     size_t index;
@@ -90,7 +90,7 @@ static int test_sweep_rejects_invalid_state(void)
     GCAllocation fake = {0};
     GCAllocation *allocations = NULL;
     IntervalNode *tree = NULL;
-    GCStats stats = {0, 0, 0, 0};
+    GCStats stats = {0};
     size_t count = 0;
 
     TEST_ASSERT_EQ_INT(GC_SWEEP_INVALID,
@@ -107,12 +107,16 @@ static int test_sweep_rejects_invalid_state(void)
     fake.requested_size = 1;
     fake.reserved_size = 1;
     allocations = &fake;
-    stats = (GCStats){1, 1, 1, 0};
+    stats = (GCStats){
+        .bytes_requested = 1,
+        .bytes_reserved = 1,
+        .bytes_live = 1
+    };
     TEST_ASSERT_EQ_INT(GC_SWEEP_TREE_ERROR,
                        gc_sweep(&allocations, &tree, &count, &stats));
     allocations = NULL;
     count = 0;
-    stats = (GCStats){0, 0, 0, 0};
+    stats = (GCStats){0};
     TEST_ASSERT_EQ_INT(GC_SWEEP_OK,
                        gc_sweep(&allocations, &tree, &count, &stats));
     return EXIT_SUCCESS;

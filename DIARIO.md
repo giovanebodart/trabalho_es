@@ -392,3 +392,16 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: GCC e Clang compilaram sem warnings; teste específico, suíte normal, stress, ASan/UBSan e variante `NDEBUG` passaram; três objetos não marcados foram removidos e dois sobreviventes tiveram as marcas limpas; a segunda passagem recolheu os sobreviventes; todos os mapeamentos ficaram `MEM_FREE`, a AVL permaneceu válida e as estatísticas fecharam; Dr. Memory não foi executado porque permanece incompatível com o Windows atual.
 - Erros da IA ou sugestões rejeitadas: nenhum identificado na implementação; a interrupção anterior ocorreu antes de qualquer alteração do Commit 17.
 - Pendências e próximo passo: criar o commit `feat(gc): implementa sweep de objetos não marcados`; as alterações preexistentes do usuário em `.gitignore` e `src/marker.h` serão preservadas fora do staging.
+
+## 2026-06-22 23:41 — Integração do ciclo mark-sweep
+
+- Prompt/objetivo: implementar, validar e criar o Commit 18.
+- Fase do PLAN.md: Fase 3 — Mark-sweep com raízes explícitas; Commit 18.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, API pública, estado do coletor, raízes, fila, varredura conservadora, sweep, estatísticas, testes, Makefile e histórico Git.
+- Alterações realizadas: implementação de `gc_collect()`, localização das raízes explícitas, processamento iterativo da fila, integração do sweep, medição com `QueryPerformanceCounter()`, métricas da última coleta e teste integrado com ciclo, raiz interior e lixo desconectado.
+- Decisões e justificativas: preparação, raízes, marcação e sweep permanecem em etapas separadas; marcas parciais são limpas quando a preparação ou marcação falha; a frequência e os ticks brutos são expostos para conversão reproduzível; objetos examinados e recuperados representam a última coleta, enquanto `collection_count` é acumulado.
+- Riscos ou erros procurados: coleta por outra thread, raiz `NULL` ou interior, fila parcialmente marcada após falha, recursão, ciclos, coleta de objeto vivo, estatísticas inconsistentes, overflow da contagem, falha do relógio, canários corrompidos e alteração indevida da AVL.
+- Testes executados: `mingw32-make clean`, `mingw32-make all`, teste específico `build\test_gc.exe`, `mingw32-make test`, `mingw32-make sanitize`, `mingw32-make stress`, compilação com `-DNDEBUG`, inspeção das importações PE e `git diff --check`.
+- Resultados: GCC e Clang compilaram sem warnings; teste integrado, suíte normal, stress, ASan/UBSan e variante `NDEBUG` passaram; um ciclo de dois objetos alcançável por raiz interior foi preservado e um terceiro objeto foi recuperado; após remover a raiz, o ciclo foi recolhido; as métricas registraram os objetos examinados e recuperados; o executável importa `QueryPerformanceCounter` e `QueryPerformanceFrequency`; Dr. Memory não foi executado porque permanece incompatível com o Windows atual.
+- Erros da IA ou sugestões rejeitadas: nenhum identificado.
+- Pendências e próximo passo: auditar e criar o commit `feat(gc): integra ciclo mark-sweep`; as alterações preexistentes do usuário em `.gitignore` e `src/marker.h` permanecerão fora do staging.

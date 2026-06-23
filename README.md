@@ -86,14 +86,15 @@ projeto, além de símbolos, otimização desativada e frame pointers preservado
 
 ## Estado atual
 
-O repositório está na Fase 3, Commit 17, definida em `PLAN.md`. O sweep percorre
-a lista de alocações, preserva objetos marcados e limpa suas marcas para o
-próximo ciclo. Objetos não marcados são removidos da AVL e liberados com
-`VirtualFree()`, atualizando bytes vivos, reservados e coletados. Lista,
-árvore e estatísticas são validadas antes de qualquer alteração.
+O repositório está na Fase 3, Commit 18, definida em `PLAN.md`. `gc_collect()`
+localiza os valores atuais das raízes explícitas, marca iterativamente os
+objetos alcançáveis, varre suas referências conservadoras e executa o sweep.
+A pausa total é medida com `QueryPerformanceCounter()`, e `gc_get_stats()`
+informa objetos examinados e recuperados, quantidade de coletas, ticks da
+última pausa e frequência do contador.
 
-O próximo passo é o Commit 18: integrar raízes, marcação e sweep em
-`gc_collect()`.
+O próximo passo é o Commit 19: adicionar programas-cobaia de lista, árvore e
+grafo cíclico.
 
 ## Documentação do desenvolvimento
 

@@ -70,10 +70,11 @@ $(SANITIZE_DIR)/test_sweeper$(EXEEXT): tests/test_sweeper.c src/sweeper.c \
 	$(SAN_CC) $(SAN_FLAGS) -Iinclude -Isrc -Itests tests/test_sweeper.c \
 		src/sweeper.c src/allocator.c src/interval_tree.c -o $@
 
-GC_SOURCES := src/gc.c src/allocator.c src/interval_tree.c src/roots.c
+GC_SOURCES := src/gc.c src/allocator.c src/interval_tree.c src/marker.c \
+		src/roots.c src/sweeper.c
 GC_HEADERS := include/gc.h include/gc_config.h include/gc_stats.h \
 		include/interval_tree.h src/allocator.h src/gc_internal.h \
-		src/roots.h
+		src/marker.h src/roots.h src/sweeper.h
 
 $(BUILD_DIR)/test_gc$(EXEEXT): tests/test_gc.c $(GC_SOURCES) $(GC_HEADERS) \
 		tests/test.h | $(BUILD_DIR)

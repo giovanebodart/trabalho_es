@@ -12,7 +12,9 @@
 #include "gc_config.h"
 #include "gc.h"
 #include "gc_internal.h"
+#include "marker.h"
 #include "roots.h"
+#include "sweeper.h"
 
 #include <stdint.h>
 
@@ -46,7 +48,7 @@ static GCState gc_state = {
     NULL,
     NULL,
     NULL,
-    {0, 0, 0, 0},
+    {0},
     GC_STATUS_NOT_INITIALIZED
 };
 
@@ -99,6 +101,65 @@ static bool gc_prepare_memory_pressure(size_t reserved,
     gc_request_collection();
     *next_limit = gc_grow_memory_limit(required);
     return true;
+}
+
+static void gc_clear_marks(void)
+{
+    GCAllocation *allocation = gc_state.allocations;
+
+    while (allocation != NULL) {
+        allocation->marked = false;
+        allocation = allocation->next;
+    }
+}
+
+static GCStatus gc_mark_explicit_roots(GCMarkQueue *queue)
+{
+    GCRoot *root = gc_state.roots;
+
+    while (root != NULL) {
+        IntervalNode *interval = interval_tree_find(
+            gc_state.allocation_tree, (uintptr_t)*root->location);
+
+        if (interval != NULL) {
+            GCMarkQueueResult result = gc_mark_queue_push(
+                queue, (GCAllocation *)interval);
+
+            if (result == GC_MARK_QUEUE_OUT_OF_MEMORY) {
+                return GC_STATUS_OUT_OF_MEMORY;
+            }
+            if (result == GC_MARK_QUEUE_INVALID) {
+                return GC_STATUS_INTERNAL_ERROR;
+            }
+        }
+        root = root->next;
+    }
+    return GC_STATUS_OK;
+}
+
+static GCStatus gc_process_mark_queue(GCMarkQueue *queue,
+                                      size_t *examined)
+{
+    GCAllocation *allocation;
+
+    *examined = 0;
+    while ((allocation = gc_mark_queue_pop(queue)) != NULL) {
+        GCMarkScanResult result;
+
+        if (*examined == SIZE_MAX) {
+            return GC_STATUS_SIZE_OVERFLOW;
+        }
+        ++*examined;
+        result = gc_mark_scan_object(allocation,
+                                     gc_state.allocation_tree, queue);
+        if (result == GC_MARK_SCAN_OUT_OF_MEMORY) {
+            return GC_STATUS_OUT_OF_MEMORY;
+        }
+        if (result != GC_MARK_SCAN_OK) {
+            return GC_STATUS_INTERNAL_ERROR;
+        }
+    }
+    return GC_STATUS_OK;
 }
 
 int gc_init(void)
@@ -206,7 +267,7 @@ int gc_get_stats(GCStats *out)
         gc_state.status = GC_STATUS_INVALID_ARGUMENT;
         return GC_FAILURE;
     }
-    *out = (GCStats){0, 0, 0, 0};
+    *out = (GCStats){0};
     if (!gc_state.initialized) {
         gc_state.status = GC_STATUS_NOT_INITIALIZED;
         return GC_FAILURE;
@@ -281,6 +342,75 @@ int gc_remove_root(void **root)
     return GC_SUCCESS;
 }
 
+void gc_collect(void)
+{
+    LARGE_INTEGER frequency;
+    LARGE_INTEGER start;
+    LARGE_INTEGER end;
+    GCMarkQueue queue;
+    GCStatus status;
+    size_t before_count;
+    size_t examined;
+
+    if (!gc_state.initialized) {
+        gc_state.status = GC_STATUS_NOT_INITIALIZED;
+        return;
+    }
+    if (!gc_is_owner_thread()) {
+        gc_state.status = GC_STATUS_WRONG_THREAD;
+        return;
+    }
+    if (gc_state.stats.collection_count == SIZE_MAX) {
+        gc_state.status = GC_STATUS_SIZE_OVERFLOW;
+        return;
+    }
+    if (!QueryPerformanceFrequency(&frequency)
+        || frequency.QuadPart <= 0
+        || !QueryPerformanceCounter(&start)) {
+        gc_state.status = GC_STATUS_TIMER_ERROR;
+        return;
+    }
+    if (!gc_allocator_validate_all(gc_state.allocations)) {
+        gc_state.status = GC_STATUS_CORRUPTED_MEMORY;
+        return;
+    }
+
+    gc_mark_queue_init(&queue);
+    status = gc_mark_explicit_roots(&queue);
+    if (status == GC_STATUS_OK) {
+        status = gc_process_mark_queue(&queue, &examined);
+    }
+    gc_mark_queue_destroy(&queue);
+    if (status != GC_STATUS_OK) {
+        gc_clear_marks();
+        gc_state.status = status;
+        return;
+    }
+
+    before_count = gc_state.allocation_count;
+    if (gc_sweep(&gc_state.allocations, &gc_state.allocation_tree,
+                 &gc_state.allocation_count,
+                 &gc_state.stats) != GC_SWEEP_OK) {
+        gc_clear_marks();
+        gc_state.status = GC_STATUS_INTERNAL_ERROR;
+        return;
+    }
+    if (!QueryPerformanceCounter(&end) || end.QuadPart < start.QuadPart) {
+        gc_state.status = GC_STATUS_TIMER_ERROR;
+        return;
+    }
+
+    ++gc_state.stats.collection_count;
+    gc_state.stats.last_objects_examined = examined;
+    gc_state.stats.last_objects_collected =
+        before_count - gc_state.allocation_count;
+    gc_state.stats.last_pause_ticks =
+        (uint64_t)(end.QuadPart - start.QuadPart);
+    gc_state.stats.performance_frequency =
+        (uint64_t)frequency.QuadPart;
+    gc_state.status = GC_STATUS_OK;
+}
+
 void gc_shutdown(void)
 {
     bool canaries_valid;
@@ -309,7 +439,7 @@ void gc_shutdown(void)
     gc_state.allocations = NULL;
     gc_state.allocation_tree = NULL;
     gc_state.roots = NULL;
-    gc_state.stats = (GCStats){0, 0, 0, 0};
+    gc_state.stats = (GCStats){0};
     gc_state.status = canaries_valid
                       ? GC_STATUS_OK
                       : GC_STATUS_CORRUPTED_MEMORY;
