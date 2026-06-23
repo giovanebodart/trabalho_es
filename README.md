@@ -90,14 +90,14 @@ O visualizador ASCII mostra raizes, referencias, objetos alcancaveis, lixo e met
 
 ## Estado atual
 
-O repositório está na Fase 4, com o Commit 20 concluído. O módulo
-`stack_roots` detecta experimentalmente a direção de crescimento da pilha e
-examina conservadoramente o intervalo ativo até o limite capturado no Windows.
+O repositório está na Fase 4, com o Commit 21 implementado. O módulo
+`stack_roots` detecta experimentalmente a direção de crescimento da pilha, e o
+módulo `register_roots` salva o contexto com `setjmp()` para examinar o
+`jmp_buf` como uma região conservadora de candidatos.
 
-A varredura da pilha ainda não participa de `gc_collect()`: essa integração
-ocorrerá no Commit 22, depois da captura de registradores. O próximo passo é o
-Commit 21, que salvará o contexto com `setjmp()` sem depender da representação
-interna de `jmp_buf`.
+As raízes automáticas de pilha e registradores ainda não participam de
+`gc_collect()`: essa integração ocorrerá no Commit 22. Até lá, os módulos são
+validados isoladamente para reduzir dependência de detalhes frágeis da ABI.
 
 ## Documentação do desenvolvimento
 

@@ -483,3 +483,29 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: `stack_roots`, seu teste e o Makefile estavam commitados; o visualizador e sua documentacao estavam apenas pendentes; o README ainda indicava incorretamente o Commit 19.
 - Erros da IA ou sugestoes rejeitadas: a IA informou que o pedido extra permanecia fora do commit sem concluir posteriormente o commit complementar e nao atualizou a secao `Estado atual` do README ao fechar o Commit 20.
 - Pendencias e proximo passo: incorporar esta correcao ao Commit 20, validar e criar um commit separado para o visualizador; depois iniciar o Commit 21.
+
+## 2026-06-23 16:09 - Captura conservadora de registradores
+
+- Prompt/objetivo: prosseguir para o Commit 21 e capturar registradores com `setjmp()`.
+- Fase do PLAN.md: Fase 4 - Pilha e registradores; Commit 21.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, estado Git, historico recente, `stack_roots`, fila de marcacao, arvore de intervalos, `Makefile` e testes existentes.
+- Alteracoes realizadas: criacao do modulo `register_roots`, varredura byte a byte do `jmp_buf` como regiao opaca, teste especifico de regiao desalinhada e teste de ponteiro preservado em registrador nao-volatil, alem da integracao ao build normal e sanitizado.
+- Decisoes e justificativas: o codigo de producao nao interpreta campos internos de `jmp_buf`; apenas examina sua representacao de objeto com `memcpy()`. A integracao com `gc_collect()` foi deixada para o Commit 22 para combinar registradores, pilha e raizes explicitas em uma unica etapa.
+- Riscos ou erros procurados: dependencia indevida do layout de `jmp_buf`, acesso desalinhado, leitura fora da regiao salva, duplicacao de marcacao, falha de crescimento da fila, ponteiro interior, falso positivo conservador, registrador sobrescrito pela propria chamada de varredura e fragilidade sob otimizacao.
+- Testes executados: teste especifico `build\test_register_roots.exe`, `mingw32-make clean`, `mingw32-make all`, `mingw32-make test`, `mingw32-make sanitize`, `mingw32-make stress`, compilacao e execucao do teste novo com `-DNDEBUG`, GCC `-O2`, Clang `-O2 -fno-omit-frame-pointer` e `git diff --check`.
+- Resultados: build normal, suite completa, stress, ASan/UBSan, `NDEBUG`, GCC `-O2`, Clang `-O2` e whitespace passaram sem warnings; o teste marcou ponteiros interiores em regiao desalinhada e em registrador nao-volatil salvo por `setjmp()`.
+- Erros da IA ou sugestoes rejeitadas: a primeira versao do teste usou `rbx`; ela passava em GCC, mas falhou em Clang `-O2` porque a funcao de varredura podia usar registradores nao-volateis para seus proprios parametros antes de chamar `setjmp()`. O teste foi corrigido para usar `r12`, que passou no cenario real em GCC e Clang.
+- Pendencias e proximo passo: revisar o diff final e criar o commit `feat(gc): captura registradores com setjmp` somente apos autorizacao; o Commit 22 deve integrar raizes explicitas, pilha e registradores em `gc_collect()`.
+
+## 2026-06-23 16:24 - Criacao do Commit 21
+
+- Prompt/objetivo: criar o Commit 21 com a mensagem indicada.
+- Fase do PLAN.md: Fase 4 - Pilha e registradores; fechamento do Commit 21.
+- Arquivos examinados: estado Git, diff final, limites de linhas, diario, README, Makefile e modulo `register_roots`.
+- Alteracoes realizadas: registro da autorizacao e preparacao do commit `feat(gc): captura registradores com setjmp`.
+- Decisoes e justificativas: o staging sera restrito aos arquivos do Commit 21; as alteracoes locais preexistentes em `.gitignore` e `src/marker.h` permanecerao fora do commit.
+- Riscos ou erros procurados: inclusao acidental de alteracoes fora do escopo, commit sem diario, whitespace invalido e mistura com o Commit 22.
+- Testes executados: revisao do diff final e confirmacao da suite ja executada no mesmo conteudo funcional; nenhum teste de codigo foi repetido porque houve apenas registro documental apos a validacao.
+- Resultados: autorizacao explicita recebida para criar o commit com a mensagem indicada.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado nesta etapa.
+- Pendencias e proximo passo: criar o Commit 21 e, apos nova solicitacao, iniciar o Commit 22 para integrar raizes automaticas em `gc_collect()`.

@@ -14,7 +14,7 @@ MKDIR_SANITIZE = if not exist "$(SANITIZE_DIR)" mkdir "$(SANITIZE_DIR)"
 CLEAN_BUILD = if exist "$(BUILD_DIR)" rmdir /S /Q "$(BUILD_DIR)"
 
 TEST_NAMES := test_assertions test_gc test_interval_tree test_marker \
-	test_smoke test_stack_roots test_sweeper
+	test_register_roots test_smoke test_stack_roots test_sweeper
 TEST_BINS := $(addprefix $(BUILD_DIR)/,$(addsuffix $(EXEEXT),$(TEST_NAMES)))
 SANITIZE_BINS := $(addprefix $(SANITIZE_DIR)/,$(addsuffix $(EXEEXT),$(TEST_NAMES)))
 EXAMPLE_NAMES := list tree cyclic_graph
@@ -74,6 +74,21 @@ $(SANITIZE_DIR)/test_stack_roots$(EXEEXT): tests/test_stack_roots.c \
 		tests/test_stack_roots.c src/stack_roots.c src/marker.c \
 		src/interval_tree.c -o $@
 
+$(BUILD_DIR)/test_register_roots$(EXEEXT): tests/test_register_roots.c \
+		src/register_roots.c src/marker.c src/interval_tree.c \
+		src/register_roots.h src/marker.h src/allocator.h \
+		include/interval_tree.h tests/test.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -Iinclude -Isrc -Itests tests/test_register_roots.c \
+		src/register_roots.c src/marker.c src/interval_tree.c -o $@
+
+$(SANITIZE_DIR)/test_register_roots$(EXEEXT): tests/test_register_roots.c \
+		src/register_roots.c src/marker.c src/interval_tree.c \
+		src/register_roots.h src/marker.h src/allocator.h \
+		include/interval_tree.h tests/test.h | $(SANITIZE_DIR)
+	$(SAN_CC) $(SAN_FLAGS) -Iinclude -Isrc -Itests \
+		tests/test_register_roots.c src/register_roots.c src/marker.c \
+		src/interval_tree.c -o $@
+
 $(BUILD_DIR)/test_sweeper$(EXEEXT): tests/test_sweeper.c src/sweeper.c \
 		src/allocator.c src/interval_tree.c src/sweeper.h src/allocator.h \
 		include/gc_stats.h include/interval_tree.h tests/test.h \
@@ -89,10 +104,11 @@ $(SANITIZE_DIR)/test_sweeper$(EXEEXT): tests/test_sweeper.c src/sweeper.c \
 		src/sweeper.c src/allocator.c src/interval_tree.c -o $@
 
 GC_SOURCES := src/gc.c src/allocator.c src/interval_tree.c src/marker.c \
-		src/roots.c src/stack_roots.c src/sweeper.c
+		src/register_roots.c src/roots.c src/stack_roots.c src/sweeper.c
 GC_HEADERS := include/gc.h include/gc_config.h include/gc_stats.h \
 		include/interval_tree.h src/allocator.h src/gc_internal.h \
-		src/marker.h src/roots.h src/stack_roots.h src/sweeper.h
+		src/marker.h src/register_roots.h src/roots.h src/stack_roots.h \
+		src/sweeper.h
 
 $(BUILD_DIR)/test_gc$(EXEEXT): tests/test_gc.c $(GC_SOURCES) $(GC_HEADERS) \
 		tests/test.h | $(BUILD_DIR)
@@ -117,6 +133,7 @@ test: $(TEST_BINS) $(EXAMPLE_BINS)
 	$(BUILD_DIR)/test_gc$(EXEEXT)
 	$(BUILD_DIR)/test_interval_tree$(EXEEXT)
 	$(BUILD_DIR)/test_marker$(EXEEXT)
+	$(BUILD_DIR)/test_register_roots$(EXEEXT)
 	$(BUILD_DIR)/test_smoke$(EXEEXT)
 	$(BUILD_DIR)/test_stack_roots$(EXEEXT)
 	$(BUILD_DIR)/test_sweeper$(EXEEXT)
@@ -131,6 +148,7 @@ sanitize: $(SANITIZE_BINS) $(SANITIZE_EXAMPLE_BINS)
 	set "PATH=$(SAN_RUNTIME_DIR);%PATH%" && $(subst /,\,$(SANITIZE_DIR)/test_gc$(EXEEXT))
 	set "PATH=$(SAN_RUNTIME_DIR);%PATH%" && $(subst /,\,$(SANITIZE_DIR)/test_interval_tree$(EXEEXT))
 	set "PATH=$(SAN_RUNTIME_DIR);%PATH%" && $(subst /,\,$(SANITIZE_DIR)/test_marker$(EXEEXT))
+	set "PATH=$(SAN_RUNTIME_DIR);%PATH%" && $(subst /,\,$(SANITIZE_DIR)/test_register_roots$(EXEEXT))
 	set "PATH=$(SAN_RUNTIME_DIR);%PATH%" && $(subst /,\,$(SANITIZE_DIR)/test_smoke$(EXEEXT))
 	set "PATH=$(SAN_RUNTIME_DIR);%PATH%" && $(subst /,\,$(SANITIZE_DIR)/test_stack_roots$(EXEEXT))
 	set "PATH=$(SAN_RUNTIME_DIR);%PATH%" && $(subst /,\,$(SANITIZE_DIR)/test_sweeper$(EXEEXT))
