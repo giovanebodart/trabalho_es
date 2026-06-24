@@ -24,6 +24,8 @@ static bool gc_sweep_state_valid(const GCAllocation *allocations,
     return count == allocation_count
            && live == stats->bytes_live
            && reserved == stats->bytes_reserved
+           && reserved >= live
+           && stats->bytes_internal_fragmentation == reserved - live
            && stats->bytes_collected <= SIZE_MAX - live
            && stats->bytes_requested
               == stats->bytes_collected + live;
@@ -75,6 +77,7 @@ GCSweepResult gc_sweep(GCAllocation **allocations,
             GCAllocation *next = allocation->next;
             size_t requested = allocation->requested_size;
             size_t reserved = allocation->reserved_size;
+            size_t fragmentation = reserved - requested;
 
             if (!interval_tree_remove(tree, allocation->interval.start,
                                       &removed)
@@ -92,6 +95,7 @@ GCSweepResult gc_sweep(GCAllocation **allocations,
             --*allocation_count;
             stats->bytes_live -= requested;
             stats->bytes_reserved -= reserved;
+            stats->bytes_internal_fragmentation -= fragmentation;
             stats->bytes_collected += requested;
         }
     }

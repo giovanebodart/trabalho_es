@@ -90,14 +90,16 @@ O visualizador ASCII mostra raizes, referencias, objetos alcancaveis, lixo e met
 
 ## Estado atual
 
-O repositório está na Fase 5, com o Commit 23 implementado. O alocador reserva
-arenas de 64 KiB com `VirtualAlloc()` e entrega blocos sequenciais para os
-objetos; os metadados continuam separados do conteúdo alocado pelo usuário.
+O repositório está na Fase 5, com o Commit 24 em preparação. O alocador usa
+classes de tamanho para objetos pequenos, com blocos de 32, 64, 128, 256, 512 e
+1024 bytes distribuídos a partir de arenas de 64 KiB. Objetos maiores recebem
+mapeamentos dedicados por `VirtualAlloc()`.
 
 A árvore de intervalos continua representando cada objeto individual, não a
-arena inteira. Neste ponto as arenas são monotônicas: o sweep remove objetos da
-árvore e libera metadados, mas a reutilização de blocos e a liberação de arenas
-vazias ficam para os próximos commits.
+arena inteira. As estatísticas agora expõem `bytes_internal_fragmentation`, que
+mede a diferença entre bytes reservados para blocos vivos e bytes solicitados
+vivos. A devolução de blocos coletados às freelists e a liberação de arenas
+inteiramente vazias permanecem para o Commit 25.
 
 ## Documentação do desenvolvimento
 

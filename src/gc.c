@@ -247,6 +247,7 @@ int gc_init(void)
 void *gc_malloc(size_t size)
 {
     GCAllocation *allocation;
+    size_t fragmentation;
     size_t next_limit;
     size_t reserved;
 
@@ -263,12 +264,16 @@ void *gc_malloc(size_t size)
         return NULL;
     }
     if (!gc_allocator_reservation_size(size, gc_state.page_size, &reserved)
+        || reserved < size
         || gc_state.stats.bytes_requested > SIZE_MAX - size
         || gc_state.stats.bytes_live > SIZE_MAX - size
+        || gc_state.stats.bytes_internal_fragmentation
+           > SIZE_MAX - (reserved - size)
         || !gc_prepare_memory_pressure(reserved, &next_limit)) {
         gc_state.status = GC_STATUS_SIZE_OVERFLOW;
         return NULL;
     }
+    fragmentation = reserved - size;
 
     allocation = gc_allocator_create(size, reserved);
     if (allocation == NULL) {
@@ -288,6 +293,7 @@ void *gc_malloc(size_t size)
     gc_state.stats.bytes_requested += size;
     gc_state.stats.bytes_live += size;
     gc_state.stats.bytes_reserved += reserved;
+    gc_state.stats.bytes_internal_fragmentation += fragmentation;
     gc_state.memory_limit = next_limit;
     gc_state.status = GC_STATUS_OK;
     return allocation->memory;

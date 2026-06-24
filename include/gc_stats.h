@@ -7,6 +7,7 @@
 typedef struct {
     size_t bytes_requested;
     size_t bytes_reserved;
+    size_t bytes_internal_fragmentation;
     size_t bytes_live;
     size_t bytes_collected;
     size_t collection_count;

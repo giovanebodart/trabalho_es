@@ -561,3 +561,29 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: autorizacao explicita recebida para criar o commit com a mensagem indicada.
 - Erros da IA ou sugestoes rejeitadas: nenhum identificado nesta etapa.
 - Pendencias e proximo passo: criar o Commit 23; depois iniciar o Commit 24 somente apos nova solicitacao.
+
+## 2026-06-23 21:50 - Classes de tamanho do alocador
+
+- Prompt/objetivo: prosseguir para o Commit 24 da Fase 5.
+- Fase do PLAN.md: Fase 5 - Arenas e escalabilidade; Commit 24.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, estado e historico Git, `allocator`, `gc`, `sweeper`, estatisticas, testes integrados e testes de sweep.
+- Alteracoes realizadas: criacao de classes pequenas de 32, 64, 128, 256, 512 e 1024 bytes; arenas de 64 KiB passaram a ser subdivididas em freelists por classe; objetos maiores que a maior classe recebem mapeamentos dedicados por `VirtualAlloc()`; `GCStats` ganhou `bytes_internal_fragmentation`; testes e README foram atualizados.
+- Decisoes e justificativas: a reutilizacao de blocos coletados nao foi implementada neste marco porque pertence ao Commit 25; por enquanto as freelists entregam blocos ainda nao usados dentro das arenas e o sweep continua liberando metadados de objetos pequenos sem devolver o bloco. Objetos grandes usam mapeamentos dedicados para evitar fragmentar arenas pequenas e podem ser liberados individualmente com `VirtualFree()`.
+- Riscos ou erros procurados: desalinhamento de objetos, overflow de arredondamento, classe incorreta para objetos pequenos, objeto grande caindo em arena pequena, estatisticas inconsistentes, liberacao indevida de arena durante sweep, `VirtualFree()` aplicado em bloco pequeno e invariantes da arvore apos remocao.
+- Testes executados: `mingw32-make clean`, `mingw32-make all`, `mingw32-make test`, compilacao de `test_gc` com `-DNDEBUG`, `mingw32-make sanitize`, `mingw32-make stress`, `.\scripts\run_gc_visualizer.ps1 -BuildOnly`, `.\scripts\run_gc_visualizer.ps1 -Demo` e `git diff --check`.
+- Resultados: build, suite normal, ASan/UBSan, stress e visualizador passaram sem warnings; testes confirmaram dois objetos pequenos da mesma classe na mesma arena, objeto grande em mapeamento dedicado, liberacao do mapeamento dedicado no sweep e fragmentacao interna igual a `bytes_reserved - bytes_live`. Dr. Memory nao foi executado porque foi removido do projeto e permanece fora do ambiente de validacao atual.
+- Erros da IA ou sugestoes rejeitadas: a primeira edicao do alocador deixou uma versao antiga duplicada de `gc_allocator_reservation_size()` e uma variavel `capacity` obsoleta; ambos foram corrigidos antes da validacao. A primeira versao do teste de sweep manteve o total fixo antigo de 120 bytes e falhou; a expectativa foi corrigida para calcular o total a partir dos tamanhos reais. A revisao final detectou que, em build `NDEBUG`, a freelist poderia deixar seu ponteiro nos bytes visiveis ao usuario; a area solicitada passou a ser zerada explicitamente em toda alocacao.
+- Pendencias e proximo passo: revisar o diff final e criar o commit `feat(gc): implementa classes de tamanho` somente apos autorizacao; no Commit 25, devolver blocos coletados as freelists e liberar arenas inteiramente vazias quando seguro.
+
+## 2026-06-23 22:01 - Criacao do Commit 24
+
+- Prompt/objetivo: criar o commit com a mensagem indicada.
+- Fase do PLAN.md: Fase 5 - Arenas e escalabilidade; fechamento do Commit 24.
+- Arquivos examinados: estado Git, historico recente, diff final, limites de linhas e arquivos do Commit 24.
+- Alteracoes realizadas: registro da autorizacao e preparacao do commit `feat(gc): implementa classes de tamanho`.
+- Decisoes e justificativas: o staging sera restrito aos arquivos do Commit 24; `.gitignore` e `src/marker.h` permanecerao fora porque sao alteracoes preexistentes e fora do escopo deste marco.
+- Riscos ou erros procurados: inclusao acidental de alteracoes locais antigas, commit sem diario, whitespace invalido, excesso de linhas e mistura com reutilizacao de blocos do Commit 25.
+- Testes executados: `git diff --check`, revisao de `git status --short` e `git diff --numstat`; os testes funcionais completos foram executados na etapa imediatamente anterior sobre o mesmo conteudo de codigo.
+- Resultados: diff final dentro dos limites do projeto; autorizacao explicita recebida para criar o commit com a mensagem indicada.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado nesta etapa.
+- Pendencias e proximo passo: criar o Commit 24; depois iniciar o Commit 25 somente apos nova solicitacao.

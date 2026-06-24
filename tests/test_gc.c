@@ -119,16 +119,19 @@ static int test_virtual_alloc_objects(void)
     SYSTEM_INFO system_info;
     GCStats stats;
     unsigned char *small;
+    unsigned char *small_peer;
     unsigned char *large;
     size_t requested;
     size_t reserved;
     size_t large_requested;
     size_t small_reserved;
+    size_t small_peer_reserved;
     size_t large_reserved;
     size_t impossible_size;
     size_t initial_limit;
     MEMORY_BASIC_INFORMATION memory_info;
     MEMORY_BASIC_INFORMATION small_info;
+    MEMORY_BASIC_INFORMATION small_peer_info;
     MEMORY_BASIC_INFORMATION large_info;
 
     GetSystemInfo(&system_info);
@@ -138,38 +141,57 @@ static int test_virtual_alloc_objects(void)
     TEST_ASSERT(gc_malloc(SIZE_MAX) == NULL);
     TEST_ASSERT_EQ_INT(GC_STATUS_SIZE_OVERFLOW, gc_get_status());
     initial_limit = gc_internal_memory_limit();
-    impossible_size = SIZE_MAX
-                      - (size_t)system_info.dwPageSize * (size_t)2;
+    impossible_size = SIZE_MAX / (size_t)2;
     TEST_ASSERT(gc_malloc(impossible_size) == NULL);
     TEST_ASSERT_EQ_INT(GC_STATUS_OUT_OF_MEMORY, gc_get_status());
     TEST_ASSERT(gc_internal_collection_request_count() == (size_t)1);
     TEST_ASSERT(gc_internal_memory_limit() == initial_limit);
 
     small = gc_malloc(17);
+    small_peer = gc_malloc(24);
     large = gc_malloc((size_t)system_info.dwPageSize + (size_t)1);
     TEST_ASSERT(small != NULL);
+    TEST_ASSERT(small_peer != NULL);
     TEST_ASSERT(large != NULL);
     TEST_ASSERT((uintptr_t)small % _Alignof(long double) == (uintptr_t)0);
+    TEST_ASSERT((uintptr_t)small_peer % _Alignof(long double)
+                == (uintptr_t)0);
     TEST_ASSERT(VirtualQuery(small, &small_info, sizeof small_info)
                 == sizeof small_info);
+    TEST_ASSERT(VirtualQuery(small_peer, &small_peer_info,
+                             sizeof small_peer_info)
+                == sizeof small_peer_info);
     TEST_ASSERT(VirtualQuery(large, &large_info, sizeof large_info)
                 == sizeof large_info);
-    TEST_ASSERT(small_info.AllocationBase == large_info.AllocationBase);
-    TEST_ASSERT(gc_internal_allocation_count() == (size_t)2);
+    TEST_ASSERT(small_info.AllocationBase
+                == small_peer_info.AllocationBase);
+    TEST_ASSERT(small_info.AllocationBase != large_info.AllocationBase);
+    TEST_ASSERT(gc_internal_allocation_count() == (size_t)3);
     TEST_ASSERT(gc_internal_get_allocation_info(small + 16,
                                                 &requested,
                                                 &small_reserved));
     TEST_ASSERT(requested == (size_t)17);
+    TEST_ASSERT(gc_internal_get_allocation_info(small_peer,
+                                                &requested,
+                                                &small_peer_reserved));
+    TEST_ASSERT(requested == (size_t)24);
+    TEST_ASSERT(small_reserved == small_peer_reserved);
     TEST_ASSERT(gc_internal_get_allocation_info(large,
                                                 &requested,
                                                 &large_reserved));
     TEST_ASSERT(requested == (size_t)system_info.dwPageSize + (size_t)1);
+    TEST_ASSERT(large_reserved % (size_t)system_info.dwPageSize
+                == (size_t)0);
+    TEST_ASSERT(large_reserved > small_reserved);
     large_requested = requested;
     TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_get_stats(&stats));
     TEST_ASSERT(stats.bytes_requested
-                == (size_t)system_info.dwPageSize + (size_t)18);
+                == (size_t)system_info.dwPageSize + (size_t)42);
     TEST_ASSERT(stats.bytes_live == stats.bytes_requested);
-    TEST_ASSERT(stats.bytes_reserved == small_reserved + large_reserved);
+    TEST_ASSERT(stats.bytes_reserved
+                == small_reserved + small_peer_reserved + large_reserved);
+    TEST_ASSERT(stats.bytes_internal_fragmentation
+                == stats.bytes_reserved - stats.bytes_live);
     TEST_ASSERT(stats.bytes_collected == (size_t)0);
     reserved = small_reserved;
     TEST_ASSERT(!gc_internal_get_allocation_info(small + 17,
@@ -177,9 +199,11 @@ static int test_virtual_alloc_objects(void)
     TEST_ASSERT(reserved == (size_t)0);
 
     TEST_ASSERT(small[0] == 0 && small[16] == 0);
+    TEST_ASSERT(small_peer[0] == 0 && small_peer[23] == 0);
     TEST_ASSERT(large[0] == 0
                 && large[large_requested - (size_t)1] == 0);
     memset(small, 0x5a, 17);
+    memset(small_peer, 0x33, 24);
     memset(large, 0xa5, large_requested);
     gc_shutdown();
     TEST_ASSERT_EQ_INT(GC_STATUS_OK, gc_get_status());

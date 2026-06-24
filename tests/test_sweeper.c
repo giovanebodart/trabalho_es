@@ -6,7 +6,7 @@
 
 static int test_sweep_releases_unmarked_objects(void)
 {
-    const size_t sizes[] = {8, 16, 24, 32, 40};
+    size_t sizes[5];
     GCAllocation *objects[5];
     void *memories[5];
     GCAllocation *allocations = NULL;
@@ -14,9 +14,15 @@ static int test_sweep_releases_unmarked_objects(void)
     GCStats stats = {0};
     SYSTEM_INFO system_info;
     size_t allocation_count = 0;
+    size_t total_requested = 0;
     size_t index;
 
     GetSystemInfo(&system_info);
+    sizes[0] = 8;
+    sizes[1] = 16;
+    sizes[2] = (size_t)system_info.dwPageSize + (size_t)1;
+    sizes[3] = 32;
+    sizes[4] = 40;
     for (index = 0; index < (size_t)5; ++index) {
         size_t reserved;
 
@@ -29,9 +35,11 @@ static int test_sweep_releases_unmarked_objects(void)
         allocations = objects[index];
         memories[index] = objects[index]->memory;
         ++allocation_count;
+        total_requested += sizes[index];
         stats.bytes_requested += sizes[index];
         stats.bytes_live += sizes[index];
         stats.bytes_reserved += reserved;
+        stats.bytes_internal_fragmentation += reserved - sizes[index];
     }
 
     objects[1]->marked = true;
@@ -40,12 +48,15 @@ static int test_sweep_releases_unmarked_objects(void)
                        gc_sweep(&allocations, &tree,
                                 &allocation_count, &stats));
     TEST_ASSERT(allocation_count == (size_t)2);
-    TEST_ASSERT(stats.bytes_requested == (size_t)120);
+    TEST_ASSERT(stats.bytes_requested == total_requested);
     TEST_ASSERT(stats.bytes_live == sizes[1] + sizes[3]);
     TEST_ASSERT(stats.bytes_collected
                 == sizes[0] + sizes[2] + sizes[4]);
     TEST_ASSERT(stats.bytes_reserved
                 == objects[1]->reserved_size + objects[3]->reserved_size);
+    TEST_ASSERT(stats.bytes_internal_fragmentation
+                == objects[1]->reserved_size - sizes[1]
+                   + objects[3]->reserved_size - sizes[3]);
     TEST_ASSERT(!objects[1]->marked && !objects[3]->marked);
     TEST_ASSERT(interval_tree_find(tree, (uintptr_t)memories[1])
                 == &objects[1]->interval);
@@ -54,6 +65,13 @@ static int test_sweep_releases_unmarked_objects(void)
     TEST_ASSERT(interval_tree_find(tree, (uintptr_t)memories[0]) == NULL);
     TEST_ASSERT(interval_tree_find(tree, (uintptr_t)memories[2]) == NULL);
     TEST_ASSERT(interval_tree_find(tree, (uintptr_t)memories[4]) == NULL);
+    {
+        MEMORY_BASIC_INFORMATION info;
+
+        TEST_ASSERT(VirtualQuery(memories[2], &info, sizeof info)
+                    == sizeof info);
+        TEST_ASSERT(info.State == MEM_FREE);
+    }
 #ifndef NDEBUG
     TEST_ASSERT(interval_tree_validate(tree));
 #endif
@@ -66,6 +84,7 @@ static int test_sweep_releases_unmarked_objects(void)
     TEST_ASSERT(allocation_count == (size_t)0);
     TEST_ASSERT(stats.bytes_live == (size_t)0);
     TEST_ASSERT(stats.bytes_reserved == (size_t)0);
+    TEST_ASSERT(stats.bytes_internal_fragmentation == (size_t)0);
     TEST_ASSERT(stats.bytes_collected == stats.bytes_requested);
     gc_allocator_destroy_all(NULL);
     for (index = 0; index < (size_t)5; ++index) {
@@ -99,6 +118,7 @@ static int test_sweep_rejects_invalid_state(void)
                        gc_sweep(&allocations, &tree, &count, &stats));
     fake.requested_size = 1;
     fake.reserved_size = 1;
+    fake.dedicated_mapping = false;
     allocations = &fake;
     stats = (GCStats){
         .bytes_requested = 1,
