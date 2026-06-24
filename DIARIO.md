@@ -613,3 +613,29 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: autorizacao explicita recebida para criar o commit com a mensagem indicada e incluir as alteracoes adicionais como excecao documentada.
 - Erros da IA ou sugestoes rejeitadas: nenhum identificado nesta etapa.
 - Pendencias e proximo passo: criar o Commit 25; depois iniciar o Commit 26 somente apos nova solicitacao.
+
+## 2026-06-23 22:23 - Teste gradual de escala
+
+- Prompt/objetivo: prosseguir para o Commit 26 da Fase 5.
+- Fase do PLAN.md: Fase 5 - Arenas e escalabilidade; Commit 26.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, `Makefile`, API publica do coletor e estatisticas.
+- Alteracoes realizadas: criacao de `benchmarks/scale_allocations.c`, integracao ao `Makefile` por `all`, `stress` e `benchmark`, documentacao dos comandos de escala no README e, como pedido extra do usuario dentro do Commit 26, alteracao da saida do benchmark para uma tabela com legenda explicando cada coluna; durante a validacao, o visualizador foi corrigido para aceitar retencoes conservadoras em vez de exigir coleta exata de todo lixo logico.
+- Decisoes e justificativas: a carga percorre estagios graduais e configuraveis, com `stress` limitado por padrao a `100000` objetos para continuar rapido; `benchmark` usa `1000000` por padrao; `10^7` ficou disponivel via `--full`, mas nao foi executado nesta validacao para evitar iniciar pelo maior cenario e para nao transformar o Commit 26 no teste de fogo completo do Commit 35. A legenda foi incluida por pedido do usuario para facilitar a leitura humana dos resultados no terminal.
+- Riscos ou erros procurados: falha por escala antes de arenas, estouro em calculo de limite de memoria, retencao conservadora excessiva, coleta sem recuperar objetos, perda de estabilidade apos `gc_collect()`, ausencia de medicao de tempo, build sem alvo `benchmark` e visualizador tratando falso positivo conservador como erro.
+- Testes executados: `mingw32-make clean`, `mingw32-make all`, `mingw32-make test`, `mingw32-make sanitize`, `mingw32-make stress`, `mingw32-make benchmark`, `.\scripts\run_gc_visualizer.ps1 -BuildOnly`, `.\scripts\run_gc_visualizer.ps1 -Demo` e `git diff --check`.
+- Resultados: build, suite normal, ASan/UBSan, stress, benchmark e visualizador passaram sem warnings; os estagios `10^3`, `10^4`, `10^5` e `10^6` passaram com `live_after=0`; no alvo `benchmark`, `10^6` observou pico reservado de 64000000 bytes, 32000000 bytes coletados e pausa aproximada de 560.107 ms. Dr. Memory nao foi executado porque foi removido do projeto e permanece fora do ambiente de validacao atual.
+- Erros da IA ou sugestoes rejeitadas: a primeira validacao final do visualizador falhou com `DIVERGENCIA`, porque o modelo visual ainda exigia coleta exata de objetos logicamente inalcançaveis; isso foi corrigido para registrar retencao conservadora e aceitar falsos positivos temporarios.
+- Pendencias e proximo passo: revisar o diff final e criar o commit `test(gc): adiciona escala gradual de alocacoes` somente apos autorizacao; `10^7` deve ser executado manualmente com `--full` apenas depois de confirmar estabilidade dos estagios menores no ambiente atual.
+
+## 2026-06-23 22:36 - Criacao do Commit 26
+
+- Prompt/objetivo: criar o commit com a mensagem indicada, apos acrescentar legenda visual ao benchmark.
+- Fase do PLAN.md: Fase 5 - Arenas e escalabilidade; fechamento do Commit 26.
+- Arquivos examinados: estado Git, diff final, benchmark de escala, Makefile, README, visualizador e diario.
+- Alteracoes realizadas: registro da autorizacao e preparacao do commit `test(gc): adiciona escala gradual de alocacoes`.
+- Decisoes e justificativas: o pedido extra do usuario para tornar a saida do benchmark mais visual foi incorporado ao proprio Commit 26, pois complementa diretamente a observacao dos resultados de escala prevista neste marco.
+- Riscos ou erros procurados: commit sem diario, whitespace invalido, excesso de linhas, saida do benchmark ambigua, regressao do visualizador e mistura indevida com o Commit 27.
+- Testes executados: revisao de `git status --short`, `git diff --stat`, `git diff --numstat` e `git diff --check`; a validacao funcional completa foi executada na etapa imediatamente anterior sobre o mesmo conteudo de codigo.
+- Resultados: autorizacao explicita recebida para criar o commit com a mensagem indicada; diff final permanece dentro dos limites definidos pelo projeto.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado nesta etapa.
+- Pendencias e proximo passo: criar o Commit 26; depois iniciar o Commit 27 somente apos nova solicitacao.

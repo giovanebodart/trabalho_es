@@ -46,6 +46,7 @@ mingw32-make clean
 mingw32-make all
 mingw32-make test
 mingw32-make stress
+mingw32-make benchmark
 ```
 
 O build utiliza as flags obrigatórias
@@ -59,6 +60,18 @@ após a mudança da plataforma de desenvolvimento.
 Os testes ficam separados por módulo em `tests/test_*.c` e usam as macros de
 `tests/test.h`. Uma asserção malsucedida retorna `EXIT_FAILURE`, permitindo que
 o GNU Make interrompa a suíte com código diferente de zero.
+
+O alvo `stress` executa a suíte normal e uma carga gradual de alocações até
+`SCALE_STRESS_MAX`, cujo padrão é `100000`. Para observar milhões de objetos,
+use:
+
+```powershell
+mingw32-make benchmark SCALE_BENCHMARK_MAX=1000000
+.\build\bench_scale_allocations.exe --full
+```
+
+O modo `--full` também percorre `10^7` objetos, portanto deve ser usado apenas
+depois de validar os estágios menores no ambiente atual.
 
 O alvo de sanitização usa Clang/LLVM com AddressSanitizer e
 UndefinedBehaviorSanitizer:
@@ -86,11 +99,14 @@ projeto, além de símbolos, otimização desativada e frame pointers preservado
 
 ## Visualizador do coletor
 
-O visualizador ASCII mostra raizes, referencias, objetos alcancaveis, lixo e metricas da pausa com `.\scripts\run_gc_visualizer.ps1`; dados e remocoes sao aleatorios. Use `-Demo` para uma sequencia automatica ou `-BuildOnly` para somente compilar em debug.
+O visualizador ASCII mostra raizes, referencias, objetos alcancaveis, lixo,
+retencoes conservadoras e metricas da pausa com
+`.\scripts\run_gc_visualizer.ps1`; dados e remocoes sao aleatorios. Use `-Demo`
+para uma sequencia automatica ou `-BuildOnly` para somente compilar em debug.
 
 ## Estado atual
 
-O repositório está na Fase 5, com o Commit 25 em preparação. O alocador usa
+O repositório está na Fase 5, com o Commit 26 em preparação. O alocador usa
 classes de tamanho para objetos pequenos, com blocos de 32, 64, 128, 256, 512 e
 1024 bytes distribuídos a partir de arenas de 64 KiB. Objetos maiores recebem
 mapeamentos dedicados por `VirtualAlloc()`.
@@ -101,6 +117,10 @@ mede a diferença entre bytes reservados para blocos vivos e bytes solicitados
 vivos. O sweep devolve blocos pequenos às freelists, mantém arenas parcialmente
 ocupadas para reuso e libera arenas inteiramente vazias quando o último objeto
 vivo daquela arena é coletado.
+
+O benchmark `bench_scale_allocations` percorre estágios graduais de escala,
+observando tempo total, pausa da coleta, memória reservada no pico, bytes vivos
+após a coleta e bytes recuperados em uma tabela com legenda no terminal.
 
 ## Documentação do desenvolvimento
 

@@ -20,10 +20,14 @@ SANITIZE_BINS := $(addprefix $(SANITIZE_DIR)/,$(addsuffix $(EXEEXT),$(TEST_NAMES
 EXAMPLE_NAMES := list tree cyclic_graph
 EXAMPLE_BINS := $(addprefix $(BUILD_DIR)/example_,$(addsuffix $(EXEEXT),$(EXAMPLE_NAMES)))
 SANITIZE_EXAMPLE_BINS := $(addprefix $(SANITIZE_DIR)/example_,$(addsuffix $(EXEEXT),$(EXAMPLE_NAMES)))
+BENCHMARK_NAMES := scale_allocations
+BENCHMARK_BINS := $(addprefix $(BUILD_DIR)/bench_,$(addsuffix $(EXEEXT),$(BENCHMARK_NAMES)))
+SCALE_STRESS_MAX ?= 100000
+SCALE_BENCHMARK_MAX ?= 1000000
 
-.PHONY: all test stress sanitize clean
+.PHONY: all test stress sanitize benchmark clean
 
-all: $(TEST_BINS) $(EXAMPLE_BINS)
+all: $(TEST_BINS) $(EXAMPLE_BINS) $(BENCHMARK_BINS)
 
 $(BUILD_DIR):
 	$(MKDIR_BUILD)
@@ -124,6 +128,10 @@ $(BUILD_DIR)/example_%$(EXEEXT): examples/%.c $(GC_SOURCES) $(GC_HEADERS) \
 		| $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Isrc $< $(GC_SOURCES) -o $@
 
+$(BUILD_DIR)/bench_%$(EXEEXT): benchmarks/%.c $(GC_SOURCES) $(GC_HEADERS) \
+		| $(BUILD_DIR)
+	$(CC) $(CFLAGS) -Iinclude -Isrc $< $(GC_SOURCES) -o $@
+
 $(SANITIZE_DIR)/example_%$(EXEEXT): examples/%.c $(GC_SOURCES) $(GC_HEADERS) \
 		| $(SANITIZE_DIR)
 	$(SAN_CC) $(SAN_FLAGS) -Iinclude -Isrc $< $(GC_SOURCES) -o $@
@@ -141,7 +149,11 @@ test: $(TEST_BINS) $(EXAMPLE_BINS)
 	$(BUILD_DIR)/example_tree$(EXEEXT)
 	$(BUILD_DIR)/example_cyclic_graph$(EXEEXT)
 
-stress: test
+stress: test $(BUILD_DIR)/bench_scale_allocations$(EXEEXT)
+	$(BUILD_DIR)/bench_scale_allocations$(EXEEXT) $(SCALE_STRESS_MAX)
+
+benchmark: $(BUILD_DIR)/bench_scale_allocations$(EXEEXT)
+	$(BUILD_DIR)/bench_scale_allocations$(EXEEXT) $(SCALE_BENCHMARK_MAX)
 
 sanitize: $(SANITIZE_BINS) $(SANITIZE_EXAMPLE_BINS)
 	set "PATH=$(SAN_RUNTIME_DIR);%PATH%" && $(subst /,\,$(SANITIZE_DIR)/test_assertions$(EXEEXT))

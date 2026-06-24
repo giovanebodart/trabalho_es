@@ -22,6 +22,7 @@ typedef struct {
     Object *object[OBJECT_COUNT];
     void *root[ROOT_COUNT];
     bool active[OBJECT_COUNT];
+    size_t retained_garbage;
     bool valid;
 } Demo;
 typedef void (*Action)(Demo *, char *, size_t);
@@ -120,8 +121,8 @@ static void render(const Demo *demo, const char *message) {
         print_target(demo, demo->object[index]->edge[1]);
         putchar('\n');
     }
-    printf("\nAtivos=%zu | alcancaveis=%zu | lixo=%zu\n",
-           active, marked, active - marked);
+    printf("\nAtivos=%zu | alcancaveis=%zu | lixo=%zu | retidos=%zu\n",
+           active, marked, active - marked, demo->retained_garbage);
     printf("Coletas=%zu | examinados=%zu | coletados=%zu | pausa=%.3f us\n",
            stats.collection_count, stats.last_objects_examined,
            stats.last_objects_collected, pause_us);
@@ -213,6 +214,7 @@ static void collect_now(Demo *demo, char *message, size_t size) {
     bool reachable[OBJECT_COUNT];
     size_t marked = find_reachable(demo, reachable);
     size_t collected = 0;
+    size_t collectible;
     size_t index;
     GCStats stats;
     scrub_stack_roots();
@@ -224,16 +226,22 @@ static void collect_now(Demo *demo, char *message, size_t size) {
                        (int)gc_get_status());
         return;
     }
+    collectible = demo->retained_garbage;
     for (index = 0; index < OBJECT_COUNT; ++index) {
         if (demo->active[index] && !reachable[index]) {
             demo->active[index] = false;
             demo->object[index] = NULL;
-            ++collected;
+            ++collectible;
         }
     }
-    demo->valid = stats.last_objects_examined == marked
-                  && stats.last_objects_collected == collected;
-    (void)snprintf(message, size, "mark=%zu, sweep=%zu%s", marked, collected,
+    collected = stats.last_objects_collected;
+    demo->valid = stats.last_objects_examined >= marked
+                  && collected <= collectible;
+    if (demo->valid) {
+        demo->retained_garbage = collectible - collected;
+    }
+    (void)snprintf(message, size, "mark>=%zu, sweep=%zu, retidos=%zu%s",
+                   marked, collected, demo->retained_garbage,
                    demo->valid ? "" : " (DIVERGENCIA)");
 }
 static bool reset_demo(Demo *demo, char *message, size_t size) {
