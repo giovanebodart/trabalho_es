@@ -4,6 +4,8 @@
 #include "sweeper.h"
 #include "test.h"
 
+#include <string.h>
+
 static int test_sweep_releases_unmarked_objects(void)
 {
     size_t sizes[5];
@@ -13,12 +15,15 @@ static int test_sweep_releases_unmarked_objects(void)
     IntervalNode *tree = NULL;
     GCStats stats = {0};
     SYSTEM_INFO system_info;
+    GCAllocation *replacement;
+    void *reused_mapping;
     size_t allocation_count = 0;
     size_t total_requested = 0;
+    size_t reused_reserved;
     size_t index;
 
     GetSystemInfo(&system_info);
-    sizes[0] = 8;
+    sizes[0] = 24;
     sizes[1] = 16;
     sizes[2] = (size_t)system_info.dwPageSize + (size_t)1;
     sizes[3] = 32;
@@ -41,6 +46,9 @@ static int test_sweep_releases_unmarked_objects(void)
         stats.bytes_reserved += reserved;
         stats.bytes_internal_fragmentation += reserved - sizes[index];
     }
+    memset(memories[0], 0x5a, sizes[0]);
+    reused_mapping = objects[0]->mapping;
+    reused_reserved = objects[0]->reserved_size;
 
     objects[1]->marked = true;
     objects[3]->marked = true;
@@ -68,10 +76,23 @@ static int test_sweep_releases_unmarked_objects(void)
     {
         MEMORY_BASIC_INFORMATION info;
 
+        TEST_ASSERT(VirtualQuery(memories[0], &info, sizeof info)
+                    == sizeof info);
+        TEST_ASSERT(info.State == MEM_COMMIT);
+    }
+    {
+        MEMORY_BASIC_INFORMATION info;
+
         TEST_ASSERT(VirtualQuery(memories[2], &info, sizeof info)
                     == sizeof info);
         TEST_ASSERT(info.State == MEM_FREE);
     }
+    replacement = gc_allocator_create(sizes[0], reused_reserved);
+    TEST_ASSERT(replacement != NULL);
+    TEST_ASSERT(replacement->mapping == reused_mapping);
+    TEST_ASSERT(replacement->memory == memories[0]);
+    TEST_ASSERT(((unsigned char *)replacement->memory)[0] == 0);
+    TEST_ASSERT(gc_allocator_destroy_one(replacement));
 #ifndef NDEBUG
     TEST_ASSERT(interval_tree_validate(tree));
 #endif
@@ -86,7 +107,6 @@ static int test_sweep_releases_unmarked_objects(void)
     TEST_ASSERT(stats.bytes_reserved == (size_t)0);
     TEST_ASSERT(stats.bytes_internal_fragmentation == (size_t)0);
     TEST_ASSERT(stats.bytes_collected == stats.bytes_requested);
-    gc_allocator_destroy_all(NULL);
     for (index = 0; index < (size_t)5; ++index) {
         MEMORY_BASIC_INFORMATION info;
 
@@ -94,6 +114,7 @@ static int test_sweep_releases_unmarked_objects(void)
                     == sizeof info);
         TEST_ASSERT(info.State == MEM_FREE);
     }
+    gc_allocator_destroy_all(NULL);
     return EXIT_SUCCESS;
 }
 

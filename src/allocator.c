@@ -30,6 +30,7 @@ typedef struct GCArena {
     unsigned char *memory;
     size_t capacity;
     size_t used;
+    size_t live_blocks;
     size_t block_size;
     struct GCArena *next;
 } GCArena;
@@ -43,6 +44,12 @@ static GCSizeClass gc_size_classes[GC_SMALL_CLASS_COUNT] = {
     {1024u, NULL}
 };
 static GCArena *gc_arenas;
+
+static void gc_arena_link(GCArena *arena)
+{
+    arena->next = gc_arenas;
+    gc_arenas = arena;
+}
 
 #ifndef NDEBUG
 static const uint64_t GC_CANARY_BEFORE = UINT64_C(0xD15EA5ECAFEBABE);
@@ -140,10 +147,64 @@ static GCArena *gc_arena_create(size_t block_size)
 
     arena->capacity = GC_ARENA_SIZE;
     arena->used = 0;
+    arena->live_blocks = 0;
     arena->block_size = block_size;
-    arena->next = gc_arenas;
-    gc_arenas = arena;
+    gc_arena_link(arena);
     return arena;
+}
+
+static bool gc_block_in_arena(const GCArena *arena, const void *block)
+{
+    uintptr_t start;
+    uintptr_t end;
+    uintptr_t address;
+
+    if (arena == NULL || block == NULL) {
+        return false;
+    }
+    start = (uintptr_t)arena->memory;
+    if (start > UINTPTR_MAX - arena->capacity) {
+        return false;
+    }
+    end = start + arena->capacity;
+    address = (uintptr_t)block;
+    return address >= start && address < end;
+}
+
+static GCArena *gc_arena_find(const void *block)
+{
+    GCArena *arena = gc_arenas;
+
+    while (arena != NULL) {
+        if (gc_block_in_arena(arena, block)) {
+            return arena;
+        }
+        arena = arena->next;
+    }
+    return NULL;
+}
+
+static bool gc_arena_unlink(GCArena *arena)
+{
+    GCArena **link = &gc_arenas;
+
+    while (*link != NULL) {
+        if (*link == arena) {
+            *link = arena->next;
+            arena->next = NULL;
+            return true;
+        }
+        link = &(*link)->next;
+    }
+    return false;
+}
+
+static void gc_size_class_push(GCSizeClass *size_class, void *block)
+{
+    GCFreeBlock *free_block = block;
+
+    free_block->next = size_class->free_list;
+    size_class->free_list = free_block;
 }
 
 static bool gc_size_class_refill(GCSizeClass *size_class)
@@ -162,11 +223,9 @@ static bool gc_size_class_refill(GCSizeClass *size_class)
     }
     count = arena->capacity / size_class->block_size;
     for (index = 0; index < count; ++index) {
-        GCFreeBlock *block = (GCFreeBlock *)
-            (arena->memory + index * size_class->block_size);
-
-        block->next = size_class->free_list;
-        size_class->free_list = block;
+        gc_size_class_push(size_class,
+                           arena->memory
+                               + index * size_class->block_size);
     }
     arena->used = count * size_class->block_size;
     return count > 0;
@@ -175,6 +234,7 @@ static bool gc_size_class_refill(GCSizeClass *size_class)
 static void *gc_size_class_allocate(size_t block_size)
 {
     GCSizeClass *size_class = gc_size_class_for_block(block_size);
+    GCArena *arena;
     GCFreeBlock *block;
 
     if (size_class == NULL) {
@@ -187,7 +247,79 @@ static void *gc_size_class_allocate(size_t block_size)
 
     block = size_class->free_list;
     size_class->free_list = block->next;
+    arena = gc_arena_find(block);
+    if (arena == NULL || arena->block_size != block_size
+        || arena->live_blocks == SIZE_MAX) {
+        gc_size_class_push(size_class, block);
+        return NULL;
+    }
+    ++arena->live_blocks;
     return block;
+}
+
+static void gc_size_class_remove_arena_blocks(GCSizeClass *size_class,
+                                              const GCArena *arena)
+{
+    GCFreeBlock **link = &size_class->free_list;
+
+    while (*link != NULL) {
+        if (gc_block_in_arena(arena, *link)) {
+            *link = (*link)->next;
+            continue;
+        }
+        link = &(*link)->next;
+    }
+}
+
+static void gc_size_class_restore_arena_blocks(GCSizeClass *size_class,
+                                               const GCArena *arena)
+{
+    size_t count = arena->capacity / arena->block_size;
+    size_t index;
+
+    for (index = 0; index < count; ++index) {
+        gc_size_class_push(size_class,
+                           arena->memory + index * arena->block_size);
+    }
+}
+
+static bool gc_arena_release_empty(GCArena *arena,
+                                   GCSizeClass *size_class)
+{
+    if (arena == NULL || size_class == NULL || arena->live_blocks != 0) {
+        return false;
+    }
+
+    gc_size_class_remove_arena_blocks(size_class, arena);
+    if (!gc_arena_unlink(arena)) {
+        gc_size_class_restore_arena_blocks(size_class, arena);
+        return false;
+    }
+    if (!VirtualFree(arena->memory, 0, MEM_RELEASE)) {
+        gc_arena_link(arena);
+        gc_size_class_restore_arena_blocks(size_class, arena);
+        return false;
+    }
+    free(arena);
+    return true;
+}
+
+static bool gc_small_block_release(void *block, size_t block_size)
+{
+    GCSizeClass *size_class = gc_size_class_for_block(block_size);
+    GCArena *arena = gc_arena_find(block);
+
+    if (size_class == NULL || arena == NULL
+        || arena->block_size != block_size || arena->live_blocks == 0) {
+        return false;
+    }
+
+    gc_size_class_push(size_class, block);
+    --arena->live_blocks;
+    if (arena->live_blocks == 0) {
+        (void)gc_arena_release_empty(arena, size_class);
+    }
+    return true;
 }
 
 static void gc_size_classes_reset(void)
@@ -255,6 +387,8 @@ GCAllocation *gc_allocator_create(size_t requested, size_t reserved)
                                start, start + requested)) {
         if (dedicated) {
             (void)VirtualFree(block, 0, MEM_RELEASE);
+        } else {
+            (void)gc_small_block_release(block, reserved);
         }
         free(allocation);
         return NULL;
@@ -338,6 +472,11 @@ bool gc_allocator_destroy_one(GCAllocation *allocation)
     }
     if (allocation->dedicated_mapping && allocation->mapping != NULL
         && !VirtualFree(allocation->mapping, 0, MEM_RELEASE)) {
+        return false;
+    }
+    if (!allocation->dedicated_mapping
+        && !gc_small_block_release(allocation->mapping,
+                                   allocation->reserved_size)) {
         return false;
     }
     free(allocation);

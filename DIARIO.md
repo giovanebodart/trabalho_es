@@ -587,3 +587,29 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: diff final dentro dos limites do projeto; autorizacao explicita recebida para criar o commit com a mensagem indicada.
 - Erros da IA ou sugestoes rejeitadas: nenhum identificado nesta etapa.
 - Pendencias e proximo passo: criar o Commit 24; depois iniciar o Commit 25 somente apos nova solicitacao.
+
+## 2026-06-23 22:10 - Reutilizacao de memoria coletada
+
+- Prompt/objetivo: prosseguir para o Commit 25 da Fase 5.
+- Fase do PLAN.md: Fase 5 - Arenas e escalabilidade; Commit 25.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, estado e historico Git, alocador, sweep e teste de sweep.
+- Alteracoes realizadas: arenas pequenas passaram a contar blocos vivos; `gc_allocator_destroy_one()` devolve blocos pequenos as freelists; arenas sem blocos vivos removem seus blocos das freelists e sao liberadas com `VirtualFree()`; testes e README foram atualizados.
+- Decisoes e justificativas: blocos pequenos deixam de ser tratados como mapeamentos individuais e ficam disponiveis para reuso enquanto a arena ainda possui objetos vivos; arenas vazias sao liberadas integralmente para devolver memoria ao sistema. Objetos grandes continuam usando `VirtualFree()` diretamente por terem mapeamento dedicado.
+- Riscos ou erros procurados: bloco pequeno liberado com `VirtualFree()` individual, freelist apontando para arena ja liberada, contagem incorreta de blocos vivos, reuso sem zerar a area visivel, perda de canarios, falha ao remover intervalos da arvore e liberacao de arena ainda parcialmente viva.
+- Testes executados: `mingw32-make clean`, `mingw32-make all`, `mingw32-make test`, compilacao de `test_gc` com `-DNDEBUG`, `mingw32-make sanitize`, `mingw32-make stress`, `.\scripts\run_gc_visualizer.ps1 -BuildOnly`, `.\scripts\run_gc_visualizer.ps1 -Demo` e `git diff --check`.
+- Resultados: build, suite normal, ASan/UBSan, stress, visualizador e whitespace passaram sem warnings; teste de sweep confirma reuso de bloco pequeno, permanencia da arena parcialmente viva, liberacao do mapeamento grande e liberacao de arenas vazias apos o ultimo bloco vivo ser coletado. Dr. Memory nao foi executado porque foi removido do projeto e permanece fora do ambiente de validacao atual.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: revisar o diff final e criar o commit `feat(gc): reutiliza memoria coletada` somente apos autorizacao; depois iniciar o Commit 26 para testar milhoes de objetos de forma gradual.
+
+## 2026-06-23 22:18 - Criacao do Commit 25
+
+- Prompt/objetivo: criar o commit com a mensagem indicada e incluir tambem `.gitignore` e `src/marker.h`.
+- Fase do PLAN.md: Fase 5 - Arenas e escalabilidade; fechamento do Commit 25.
+- Arquivos examinados: estado Git, historico recente, diff final, limites de linhas, arquivos do Commit 25 e alteracoes adicionais solicitadas.
+- Alteracoes realizadas: registro da autorizacao e preparacao do commit `feat(gc): reutiliza memoria coletada`.
+- Decisoes e justificativas: por escolha explicita do usuario, `.gitignore` e `src/marker.h` serao incluidos neste commit junto ao escopo funcional. Esta inclusao deve ser tratada como excecao a regra normal de manter commits restritos a um unico objetivo logico e de deixar alteracoes preexistentes fora do staging.
+- Riscos ou erros procurados: mistura de escopos, perda de rastreabilidade, commit sem diario, whitespace invalido, inclusao acidental de artefatos e excesso de linhas.
+- Testes executados: revisao de `git status --short`, `git diff --stat` e diario; a validacao funcional completa foi executada na etapa imediatamente anterior sobre o mesmo conteudo de codigo do Commit 25.
+- Resultados: autorizacao explicita recebida para criar o commit com a mensagem indicada e incluir as alteracoes adicionais como excecao documentada.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado nesta etapa.
+- Pendencias e proximo passo: criar o Commit 25; depois iniciar o Commit 26 somente apos nova solicitacao.
