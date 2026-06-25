@@ -2,8 +2,10 @@
 #include "gc_config.h"
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define FIRE_CANARY UINT32_C(0xC0DEC0DE)
 #define FIRE_DEFAULT_MAX ((size_t)50000)
@@ -16,22 +18,42 @@ typedef struct FireNode {
     uint32_t id;
 } FireNode;
 
-static size_t parse_limit(int argc, char **argv)
+static void print_csv_header(void)
+{
+    puts("algorithm,seed,objects,heap_bytes,live_bytes,collected_bytes,"
+         "mark_ticks,sweep_ticks,tree_searches,tree_comparisons,"
+         "minor_collections,major_collections,promoted_objects,dirty_pages,"
+         "max_rss_bytes");
+}
+
+static bool parse_args(int argc, char **argv, size_t *limit, bool *csv)
 {
     char *end = NULL;
     unsigned long long parsed;
+    int index;
 
-    if (argc > 1 && argv[1] != NULL) {
-        if (argv[1][0] == '-' && argv[1][1] == '-' && argv[1][2] == 'f') {
-            return FIRE_FULL_MAX;
-        }
-        parsed = strtoull(argv[1], &end, 10);
-        if (end != argv[1] && end != NULL && *end == '\0'
-            && parsed > 0) {
-            return (size_t)parsed;
-        }
+    if (limit == NULL || csv == NULL) {
+        return false;
     }
-    return FIRE_DEFAULT_MAX;
+    *limit = FIRE_DEFAULT_MAX;
+    *csv = false;
+    for (index = 1; index < argc; ++index) {
+        if (strcmp(argv[index], "--csv") == 0) {
+            *csv = true;
+            continue;
+        }
+        if (strcmp(argv[index], "--full") == 0) {
+            *limit = FIRE_FULL_MAX;
+            continue;
+        }
+        parsed = strtoull(argv[index], &end, 10);
+        if (argv[index][0] == '\0' || end == NULL || *end != '\0'
+            || parsed == 0 || parsed > (unsigned long long)SIZE_MAX) {
+            return false;
+        }
+        *limit = (size_t)parsed;
+    }
+    return true;
 }
 
 static int collect_until_major(void)
@@ -63,7 +85,7 @@ static int verify_roots(FireNode **roots, size_t root_count)
     return EXIT_SUCCESS;
 }
 
-static int run_cycle(size_t count, size_t cycle)
+static int run_cycle(size_t count, size_t cycle, bool csv)
 {
     FireNode **nodes = calloc(count, sizeof *nodes);
     size_t root_count = count / (size_t)16 + (size_t)1;
@@ -149,19 +171,36 @@ static int run_cycle(size_t count, size_t cycle)
         || gc_get_stats(&stats) != GC_SUCCESS) {
         return EXIT_FAILURE;
     }
-    printf("ciclo=%zu objetos=%zu vivos=%zu coletados=%zu "
-           "menores=%zu maiores=%zu\n",
-           cycle, count, stats.bytes_live, stats.bytes_collected,
-           stats.minor_collection_count, stats.major_collection_count);
+    if (csv) {
+        printf("generational,%zu,%zu,%zu,%zu,%zu,0,0,0,0,%zu,%zu,0,0,0\n",
+               cycle, count, stats.bytes_reserved, stats.bytes_live,
+               stats.bytes_collected, stats.minor_collection_count,
+               stats.major_collection_count);
+    } else {
+        printf("ciclo=%zu objetos=%zu vivos=%zu coletados=%zu "
+               "menores=%zu maiores=%zu\n",
+               cycle, count, stats.bytes_live, stats.bytes_collected,
+               stats.minor_collection_count, stats.major_collection_count);
+    }
     return EXIT_SUCCESS;
 }
 
 int main(int argc, char **argv)
 {
-    size_t max_count = parse_limit(argc, argv);
+    size_t max_count;
     size_t cycle;
+    bool csv;
 
-    puts("Teste de fogo deterministico do coletor");
+    if (!parse_args(argc, argv, &max_count, &csv)) {
+        fputs("uso: bench_fire_test.exe [objetos|--full] [--csv]\n",
+              stderr);
+        return EXIT_FAILURE;
+    }
+    if (csv) {
+        print_csv_header();
+    } else {
+        puts("Teste de fogo deterministico do coletor");
+    }
     if (gc_init() != GC_SUCCESS) {
         return EXIT_FAILURE;
     }
@@ -171,7 +210,7 @@ int main(int argc, char **argv)
         if (count == 0) {
             count = 1;
         }
-        if (run_cycle(count, cycle + (size_t)1) != EXIT_SUCCESS) {
+        if (run_cycle(count, cycle + (size_t)1, csv) != EXIT_SUCCESS) {
             gc_shutdown();
             return EXIT_FAILURE;
         }

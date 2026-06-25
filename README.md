@@ -70,6 +70,8 @@ milhões de objetos, use:
 mingw32-make benchmark SCALE_BENCHMARK_MAX=1000000
 .\build\bench_scale_allocations.exe --full
 .\build\bench_fire_test.exe --full
+.\build\bench_scale_allocations.exe 100000 --csv > data\scale.csv
+.\build\bench_fire_test.exe 50000 --csv > data\fire.csv
 ```
 
 O modo `--full` dos benchmarks também percorre `10^7` objetos, portanto deve
@@ -167,7 +169,9 @@ após a coleta e bytes recuperados em uma tabela com legenda no terminal.
 O benchmark `bench_fire_test` cria ciclos e referências cruzadas
 determinísticas, mantém raízes verificadas por canários, remove subconjuntos de
 raízes e executa coletas menores e maiores para verificar sobrevivência dos
-objetos vivos.
+objetos vivos. Ambos aceitam `--csv` e emitem as colunas planejadas para os
+experimentos; métricas ainda não instrumentadas internamente, como custo
+separado de mark/sweep e RSS, são emitidas como `0`.
 
 ## Documentação do desenvolvimento
 

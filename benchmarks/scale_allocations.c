@@ -58,29 +58,50 @@ static void print_legend(void)
     puts("-----------+------------+------------+----------------+--------------+-------------");
 }
 
-static bool parse_limit(int argc, char **argv, size_t *limit)
+static void print_csv_header(void)
+{
+    puts("algorithm,seed,objects,heap_bytes,live_bytes,collected_bytes,"
+         "mark_ticks,sweep_ticks,tree_searches,tree_comparisons,"
+         "minor_collections,major_collections,promoted_objects,dirty_pages,"
+         "max_rss_bytes");
+}
+
+static void print_csv_row(size_t count, const GCStats *peak,
+                          const GCStats *after)
+{
+    printf("generational,0,%zu,%zu,%zu,%zu,0,0,0,0,%zu,%zu,0,0,0\n",
+           count, peak->bytes_reserved, after->bytes_live,
+           after->bytes_collected, after->minor_collection_count,
+           after->major_collection_count);
+}
+
+static bool parse_args(int argc, char **argv, size_t *limit, bool *csv)
 {
     unsigned long long parsed;
     char *end = NULL;
+    int index;
 
-    if (limit == NULL || argc > 2) {
+    if (limit == NULL || csv == NULL) {
         return false;
     }
-    if (argc == 1) {
-        *limit = SCALE_DEFAULT_MAX;
-        return true;
+    *limit = SCALE_DEFAULT_MAX;
+    *csv = false;
+    for (index = 1; index < argc; ++index) {
+        if (strcmp(argv[index], "--csv") == 0) {
+            *csv = true;
+            continue;
+        }
+        if (strcmp(argv[index], "--full") == 0) {
+            *limit = scale_stages[SCALE_STAGE_COUNT - (size_t)1];
+            continue;
+        }
+        parsed = strtoull(argv[index], &end, 10);
+        if (argv[index][0] == '\0' || end == NULL || *end != '\0'
+            || parsed == 0 || parsed > (unsigned long long)SIZE_MAX) {
+            return false;
+        }
+        *limit = (size_t)parsed;
     }
-    if (strcmp(argv[1], "--full") == 0) {
-        *limit = scale_stages[SCALE_STAGE_COUNT - (size_t)1];
-        return true;
-    }
-
-    parsed = strtoull(argv[1], &end, 10);
-    if (argv[1][0] == '\0' || end == NULL || *end != '\0'
-        || parsed == 0 || parsed > (unsigned long long)SIZE_MAX) {
-        return false;
-    }
-    *limit = (size_t)parsed;
     return true;
 }
 
@@ -127,7 +148,7 @@ static SCALE_NOINLINE bool allocate_objects(size_t count)
     return true;
 }
 
-static bool run_stage(size_t count)
+static bool run_stage(size_t count, bool csv)
 {
     LARGE_INTEGER start;
     LARGE_INTEGER end;
@@ -162,15 +183,19 @@ static bool run_stage(size_t count)
              && QueryPerformanceCounter(&end);
     }
     if (ok) {
-        printf("%10zu | %10.3f | %10.3f | %14zu | %12zu | %12zu\n",
-               count,
-               ticks_to_ms((uint64_t)(end.QuadPart - start.QuadPart),
-                           (uint64_t)frequency.QuadPart),
-               ticks_to_ms(after.last_pause_ticks,
-                           after.performance_frequency),
-               peak.bytes_reserved,
-               after.bytes_live,
-               after.bytes_collected);
+        if (csv) {
+            print_csv_row(count, &peak, &after);
+        } else {
+            printf("%10zu | %10.3f | %10.3f | %14zu | %12zu | %12zu\n",
+                   count,
+                   ticks_to_ms((uint64_t)(end.QuadPart - start.QuadPart),
+                               (uint64_t)frequency.QuadPart),
+                   ticks_to_ms(after.last_pause_ticks,
+                               after.performance_frequency),
+                   peak.bytes_reserved,
+                   after.bytes_live,
+                   after.bytes_collected);
+        }
     }
     gc_shutdown();
     return ok;
@@ -181,24 +206,29 @@ int main(int argc, char **argv)
     size_t limit;
     size_t index;
     bool ran_limit = false;
+    bool csv;
 
-    if (!parse_limit(argc, argv, &limit)) {
-        fputs("uso: bench_scale_allocations.exe [objetos|max --full]\n",
+    if (!parse_args(argc, argv, &limit, &csv)) {
+        fputs("uso: bench_scale_allocations.exe [objetos|--full] [--csv]\n",
               stderr);
         return EXIT_FAILURE;
     }
 
-    print_legend();
+    if (csv) {
+        print_csv_header();
+    } else {
+        print_legend();
+    }
     for (index = 0; index < SCALE_STAGE_COUNT; ++index) {
         if (scale_stages[index] > limit) {
             break;
         }
-        if (!run_stage(scale_stages[index])) {
+        if (!run_stage(scale_stages[index], csv)) {
             return EXIT_FAILURE;
         }
         ran_limit = ran_limit || scale_stages[index] == limit;
     }
-    if (!ran_limit && !run_stage(limit)) {
+    if (!ran_limit && !run_stage(limit, csv)) {
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;
