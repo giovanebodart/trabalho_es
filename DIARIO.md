@@ -639,3 +639,16 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: autorizacao explicita recebida para criar o commit com a mensagem indicada; diff final permanece dentro dos limites definidos pelo projeto.
 - Erros da IA ou sugestoes rejeitadas: nenhum identificado nesta etapa.
 - Pendencias e proximo passo: criar o Commit 26; depois iniciar o Commit 27 somente apos nova solicitacao.
+
+## 2026-06-25 11:23 - Coleta menor inicial
+
+- Prompt/objetivo: prosseguir do Commit 27 em diante com base nas instrucoes locais; como o `HEAD` ja continha `feat: criar coletor geracional`, implementar o Commit 28.
+- Fase do PLAN.md: Fase 6 - Coletor geracional; Commit 28.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, estado e historico Git, API publica, estado do coletor, marcador, varredor, alocador, testes de GC e testes de sweep.
+- Alteracoes realizadas: `gc_collect()` passou a executar uma coleta menor que varre apenas objetos jovens; objetos antigos sao marcados como raizes conservadoras provisorias para preservar referencias antiga-para-jovem antes do remembered set; o varredor ganhou `gc_sweep_young()` mantendo `gc_sweep()` como sweep completo; testes cobrem preservacao de antigos e coleta de jovens; README e visualizador foram atualizados para indicar a coleta menor.
+- Decisoes e justificativas: a varredura de todos os antigos durante a coleta menor evita coletar incorretamente objetos jovens ainda referenciados por objetos antigos enquanto os Commits 29 a 32 ainda nao implementam promocao, paginas antigas, barreira de escrita e remembered set. O teste ABI de registradores continua ativo no build normal, mas fica fora quando AddressSanitizer esta ativo porque a instrumentacao pode reutilizar registradores preservados antes do `setjmp()`.
+- Riscos ou erros procurados: coleta indevida de objeto antigo, jovem marcado sendo liberado, marcas antigas sobrevivendo entre coletas, contadores de sobrevivencia inconsistentes, estatisticas de bytes apos sweep parcial, referencias antiga-para-jovem sem suporte, regressao do visualizador e fragilidade do teste de registradores sob ASan.
+- Testes executados: `mingw32-make all`, `mingw32-make test`, `mingw32-make clean all test sanitize stress`, `powershell -ExecutionPolicy Bypass -File .\scripts\run_gc_visualizer.ps1 -BuildOnly` e `git diff --numstat`.
+- Resultados: build e suite normal passaram sem warnings; ASan/UBSan passaram; stress reduzido passou ate `100000` objetos com `vivos_pos_gc=0`; visualizador do coletor compilou sem warnings; diff total permaneceu abaixo dos limites do `SKILL.md`.
+- Erros da IA ou sugestoes rejeitadas: a primeira execucao de `sanitize` falhou em `test_register_roots` por uma premissa ABI fragil sob ASan; a tentativa de trocar o registrador fixo de `r12` para `rbx` tambem falhou e foi revertida; a solucao adotada foi documentar e limitar esse subteste ao build nao instrumentado.
+- Pendencias e proximo passo: revisar o diff final e criar o Commit 28, sugerido como `feat(gc): implementa coleta menor`; depois iniciar o Commit 29 para promocao configuravel de objetos sobreviventes.

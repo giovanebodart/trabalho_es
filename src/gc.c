@@ -189,6 +189,27 @@ static GCStatus gc_mark_roots(GCMarkQueue *queue)
     return status;
 }
 
+static GCStatus gc_mark_old_generation_roots(GCMarkQueue *queue)
+{
+    GCAllocation *allocation = gc_state.allocations;
+
+    while (allocation != NULL) {
+        if (allocation->generation == GC_GENERATION_OLD) {
+            GCMarkQueueResult result = gc_mark_queue_push(queue,
+                                                          allocation);
+
+            if (result == GC_MARK_QUEUE_OUT_OF_MEMORY) {
+                return GC_STATUS_OUT_OF_MEMORY;
+            }
+            if (result == GC_MARK_QUEUE_INVALID) {
+                return GC_STATUS_INTERNAL_ERROR;
+            }
+        }
+        allocation = allocation->next;
+    }
+    return GC_STATUS_OK;
+}
+
 static GCStatus gc_process_mark_queue(GCMarkQueue *queue,
                                       size_t *examined)
 {
@@ -436,6 +457,9 @@ void gc_collect(void)
     gc_mark_queue_init(&queue);
     status = gc_mark_roots(&queue);
     if (status == GC_STATUS_OK) {
+        status = gc_mark_old_generation_roots(&queue);
+    }
+    if (status == GC_STATUS_OK) {
         status = gc_process_mark_queue(&queue, &examined);
     }
     gc_mark_queue_destroy(&queue);
@@ -446,9 +470,9 @@ void gc_collect(void)
     }
 
     before_count = gc_state.allocation_count;
-    if (gc_sweep(&gc_state.allocations, &gc_state.allocation_tree,
-                 &gc_state.allocation_count,
-                 &gc_state.stats) != GC_SWEEP_OK) {
+    if (gc_sweep_young(&gc_state.allocations, &gc_state.allocation_tree,
+                       &gc_state.allocation_count,
+                       &gc_state.stats) != GC_SWEEP_OK) {
         gc_clear_marks();
         gc_state.status = GC_STATUS_INTERNAL_ERROR;
         return;

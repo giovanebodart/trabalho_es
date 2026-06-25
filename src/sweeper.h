@@ -18,5 +18,9 @@ GCSweepResult gc_sweep(GCAllocation **allocations,
                        IntervalNode **tree,
                        size_t *allocation_count,
                        GCStats *stats);
+GCSweepResult gc_sweep_young(GCAllocation **allocations,
+                             IntervalNode **tree,
+                             size_t *allocation_count,
+                             GCStats *stats);
 
 #endif

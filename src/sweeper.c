@@ -2,6 +2,18 @@
 
 #include <stdint.h>
 
+typedef enum {
+    GC_SWEEP_SCOPE_ALL = 0,
+    GC_SWEEP_SCOPE_YOUNG
+} GCSweepScope;
+
+static bool gc_sweep_collects_allocation(const GCAllocation *allocation,
+                                         GCSweepScope scope)
+{
+    return scope == GC_SWEEP_SCOPE_ALL
+           || allocation->generation == GC_GENERATION_YOUNG;
+}
+
 static bool gc_sweep_state_valid(const GCAllocation *allocations,
                                  size_t allocation_count,
                                  const GCStats *stats)
@@ -44,10 +56,11 @@ static bool gc_sweep_tree_valid(const GCAllocation *allocations,
     return true;
 }
 
-GCSweepResult gc_sweep(GCAllocation **allocations,
-                       IntervalNode **tree,
-                       size_t *allocation_count,
-                       GCStats *stats)
+static GCSweepResult gc_sweep_scope(GCAllocation **allocations,
+                                    IntervalNode **tree,
+                                    size_t *allocation_count,
+                                    GCStats *stats,
+                                    GCSweepScope scope)
 {
     GCAllocation **link;
 
@@ -65,9 +78,12 @@ GCSweepResult gc_sweep(GCAllocation **allocations,
     link = allocations;
     while (*link != NULL) {
         GCAllocation *allocation = *link;
+        bool collectable = gc_sweep_collects_allocation(allocation, scope);
 
-        if (allocation->marked) {
-            gc_allocator_record_survival(allocation);
+        if (allocation->marked || !collectable) {
+            if (allocation->marked && collectable) {
+                gc_allocator_record_survival(allocation);
+            }
             allocation->marked = false;
             link = &allocation->next;
             continue;
@@ -101,4 +117,22 @@ GCSweepResult gc_sweep(GCAllocation **allocations,
         }
     }
     return GC_SWEEP_OK;
+}
+
+GCSweepResult gc_sweep(GCAllocation **allocations,
+                       IntervalNode **tree,
+                       size_t *allocation_count,
+                       GCStats *stats)
+{
+    return gc_sweep_scope(allocations, tree, allocation_count, stats,
+                          GC_SWEEP_SCOPE_ALL);
+}
+
+GCSweepResult gc_sweep_young(GCAllocation **allocations,
+                             IntervalNode **tree,
+                             size_t *allocation_count,
+                             GCStats *stats)
+{
+    return gc_sweep_scope(allocations, tree, allocation_count, stats,
+                          GC_SWEEP_SCOPE_YOUNG);
 }

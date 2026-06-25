@@ -10,6 +10,16 @@
 #define GC_TEST_NOINLINE
 #endif
 
+#if defined(__has_feature)
+#define GC_TEST_HAS_FEATURE(feature) __has_feature(feature)
+#else
+#define GC_TEST_HAS_FEATURE(feature) 0
+#endif
+
+#if defined(__SANITIZE_ADDRESS__) || GC_TEST_HAS_FEATURE(address_sanitizer)
+#define GC_TEST_ADDRESS_SANITIZER 1
+#endif
+
 static GCAllocation allocation;
 static unsigned char managed_object[32];
 
@@ -68,7 +78,12 @@ static int test_unaligned_context_region(void)
     return EXIT_SUCCESS;
 }
 
-#if defined(__GNUC__) && defined(__x86_64__)
+/*
+ * AddressSanitizer may reuse callee-saved registers before setjmp() captures
+ * the context, so this ABI-specific check is limited to uninstrumented builds.
+ */
+#if defined(__GNUC__) && defined(__x86_64__) \
+    && !defined(GC_TEST_ADDRESS_SANITIZER)
 static GC_TEST_NOINLINE GCRegisterScanResult scan_with_preserved_register(
     uintptr_t candidate,
     IntervalNode *tree,

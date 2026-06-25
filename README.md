@@ -106,7 +106,7 @@ para uma sequencia automatica ou `-BuildOnly` para somente compilar em debug.
 
 ## Estado atual
 
-O repositório está na Fase 5, com o Commit 26 em preparação. O alocador usa
+O repositório está na Fase 6, com a coleta menor inicial. O alocador usa
 classes de tamanho para objetos pequenos, com blocos de 32, 64, 128, 256, 512 e
 1024 bytes distribuídos a partir de arenas de 64 KiB. Objetos maiores recebem
 mapeamentos dedicados por `VirtualAlloc()`.
@@ -117,6 +117,13 @@ mede a diferença entre bytes reservados para blocos vivos e bytes solicitados
 vivos. O sweep devolve blocos pequenos às freelists, mantém arenas parcialmente
 ocupadas para reuso e libera arenas inteiramente vazias quando o último objeto
 vivo daquela arena é coletado.
+
+As alocações novas entram na geração jovem. `gc_collect()` executa uma coleta
+menor: marca raízes explícitas, pilha, registradores e, provisoriamente, todos
+os objetos antigos como raízes conservadoras; em seguida varre apenas objetos
+jovens não marcados. Essa varredura preserva referências antiga-para-jovem de
+forma segura até os próximos commits adicionarem promoção, páginas antigas,
+barreira de escrita e remembered set.
 
 O benchmark `bench_scale_allocations` percorre estágios graduais de escala,
 observando tempo total, pausa da coleta, memória reservada no pico, bytes vivos

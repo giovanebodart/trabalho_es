@@ -132,7 +132,7 @@ static void render(const Demo *demo, const char *message) {
     puts("[1] Alocar e integrar objeto aleatorio");
     puts("[2] Alterar raiz ou referencia aleatoria");
     puts("[3] Descartar raiz ou referencia aleatoria");
-    puts("[4] Executar coleta mark-sweep");
+    puts("[4] Executar coleta menor");
     puts("[5] Gerar novo grafo aleatorio");
     puts("[6] Executar sequencia automatica");
     puts("[0] Sair");
