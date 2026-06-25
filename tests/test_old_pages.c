@@ -45,6 +45,14 @@ static int test_old_pages_track_only_dedicated_old_mappings(void)
         pages, (unsigned char *)large->memory + large->requested_size - 1)
         == page);
     TEST_ASSERT(gc_old_pages_find(pages, small->memory) == NULL);
+    TEST_ASSERT(gc_old_pages_protect(pages));
+#if GC_OLD_PAGES_PROTECTION_SUPPORTED
+    TEST_ASSERT(page->protected && !page->dirty);
+    TEST_ASSERT(gc_old_pages_unprotect_for_write(pages, large->memory));
+    TEST_ASSERT(!page->protected && page->dirty);
+#else
+    TEST_ASSERT(!page->protected && !page->dirty);
+#endif
 
     gc_old_pages_destroy(pages);
     TEST_ASSERT(gc_allocator_destroy_one(small));

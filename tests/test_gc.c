@@ -5,6 +5,7 @@
 #include "gc_config.h"
 #include "gc.h"
 #include "gc_internal.h"
+#include "old_pages.h"
 #include "test.h"
 
 #include <limits.h>
@@ -265,6 +266,8 @@ static int test_old_page_tracking_after_promotion(void)
     size_t page_size = 0;
     size_t requested = 0;
     size_t reserved = 0;
+    bool dirty = true;
+    bool is_protected = false;
 
     GetSystemInfo(&system_info);
     TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_init());
@@ -283,6 +286,19 @@ static int test_old_page_tracking_after_promotion(void)
                                               &page_size));
     TEST_ASSERT(page_base != NULL);
     TEST_ASSERT(page_size == reserved);
+    TEST_ASSERT(gc_internal_get_old_page_state(root,
+                                               &dirty,
+                                               &is_protected));
+#if GC_OLD_PAGES_PROTECTION_SUPPORTED
+    TEST_ASSERT(!dirty && is_protected);
+    ((unsigned char *)root)[0] = 0x5a;
+    TEST_ASSERT(gc_internal_get_old_page_state(root,
+                                               &dirty,
+                                               &is_protected));
+    TEST_ASSERT(dirty && !is_protected);
+#else
+    TEST_ASSERT(!dirty && !is_protected);
+#endif
     TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_remove_root(&root));
     gc_shutdown();
     TEST_ASSERT_EQ_INT(GC_STATUS_OK, gc_get_status());

@@ -678,3 +678,16 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: suite normal, ASan/UBSan, stress reduzido ate `100000` objetos e visualizador passaram sem warnings; o primeiro build do visualizador falhou por falta de `old_pages.c` no script e passou apos a correcao; o teste novo foi enxugado para manter o commit no limite total de linhas.
 - Erros da IA ou sugestoes rejeitadas: a lista de fontes do visualizador foi esquecida inicialmente; a validacao especifica detectou o problema antes do commit.
 - Pendencias e proximo passo: criar o Commit 30 local `feat(gc): organiza paginas antigas`; depois iniciar o Commit 31 para instalar a barreira com `VirtualProtect()` e tratador vetorizado.
+
+## 2026-06-25 11:58 - Barreira com VirtualProtect
+
+- Prompt/objetivo: continuar em ordem e implementar o Commit 31.
+- Fase do PLAN.md: Fase 6 - Coletor geracional; Commit 31.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, tabela de paginas antigas, estado do coletor, testes integrados, teste de paginas antigas, README e visualizador.
+- Alteracoes realizadas: paginas antigas protegiveis passam a ser marcadas como somente leitura com `VirtualProtect()` apos a coleta; o coletor instala um tratador vetorizado com `AddVectoredExceptionHandler()`; uma escrita valida em pagina antiga protegida marca a pagina como suja e restaura `PAGE_READWRITE`; testes verificam protecao, escrita via excecao e estado sujo.
+- Decisoes e justificativas: o tratador faz apenas checagens da excecao e uma chamada a `VirtualProtect()`, sem alocar e sem executar varredura; excecoes que nao sejam escrita em pagina antiga protegida continuam para outros tratadores. Em builds com AddressSanitizer, a protecao e o tratador ficam desativados para evitar conflito entre SEH, shadow memory e paginas protegidas.
+- Riscos ou erros procurados: loop infinito de excecao, tratar violacao que nao pertence a barreira, proteger paginas de arenas pequenas, deixar pagina antiga inacessivel no shutdown, regressao de ASan/UBSan, escrita em velho sem marcar dirty e handler fazendo trabalho inseguro.
+- Testes executados: `mingw32-make all test`, `mingw32-make clean all test sanitize stress`, visualizador do coletor `-BuildOnly`, `git diff --numstat` e `git diff --check`.
+- Resultados: build normal exercitou a escrita real em pagina protegida; suite normal, ASan/UBSan com barreira desativada, stress reduzido ate `100000` objetos e visualizador passaram sem warnings.
+- Erros da IA ou sugestoes rejeitadas: a primeira versao deixava o handler ativo sob ASan e `test_gc` caia com `EXCEPTION_ACCESS_VIOLATION`; a detecao foi ajustada para desativar handler e protecao no build sanitizado.
+- Pendencias e proximo passo: criar o Commit 31 local `feat(gc): adiciona barreira de escrita`; depois iniciar o Commit 32 para usar paginas sujas como remembered set.

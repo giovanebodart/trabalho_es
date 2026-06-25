@@ -24,6 +24,7 @@
 typedef struct {
     bool initialized;
     DWORD owner_thread_id;
+    PVOID barrier_handler;
     uintptr_t stack_low;
     uintptr_t stack_high;
     size_t page_size;
@@ -43,6 +44,7 @@ typedef struct {
 static GCState gc_state = {
     false,
     0,
+    NULL,
     (uintptr_t)0,
     (uintptr_t)0,
     0,
@@ -68,6 +70,31 @@ static bool gc_is_owner_thread(void)
 {
     return gc_state.owner_thread_id == GetCurrentThreadId();
 }
+
+#if GC_OLD_PAGES_PROTECTION_SUPPORTED
+static LONG CALLBACK gc_write_barrier_handler(
+    EXCEPTION_POINTERS *exception_info)
+{
+    EXCEPTION_RECORD *record;
+
+    if (exception_info == NULL) {
+        return EXCEPTION_CONTINUE_SEARCH;
+    }
+    record = exception_info->ExceptionRecord;
+    if (record == NULL
+        || record->ExceptionCode != EXCEPTION_ACCESS_VIOLATION
+        || record->NumberParameters < 2
+        || record->ExceptionInformation[0] != (ULONG_PTR)1) {
+        return EXCEPTION_CONTINUE_SEARCH;
+    }
+    if (!gc_old_pages_unprotect_for_write(
+            gc_state.old_pages,
+            (const void *)record->ExceptionInformation[1])) {
+        return EXCEPTION_CONTINUE_SEARCH;
+    }
+    return EXCEPTION_CONTINUE_EXECUTION;
+}
+#endif
 
 static size_t gc_grow_memory_limit(size_t required)
 {
@@ -251,6 +278,9 @@ static GCStatus gc_rebuild_old_pages(void)
     if (result != GC_OLD_PAGE_OK) {
         return GC_STATUS_INTERNAL_ERROR;
     }
+    if (!gc_old_pages_protect(gc_state.old_pages)) {
+        return GC_STATUS_INTERNAL_ERROR;
+    }
     return GC_STATUS_OK;
 }
 
@@ -274,6 +304,14 @@ int gc_init(void)
         gc_state.status = GC_STATUS_INVALID_STACK_LIMITS;
         return GC_FAILURE;
     }
+#if GC_OLD_PAGES_PROTECTION_SUPPORTED
+    gc_state.barrier_handler = AddVectoredExceptionHandler(
+        1, gc_write_barrier_handler);
+    if (gc_state.barrier_handler == NULL) {
+        gc_state.status = GC_STATUS_INTERNAL_ERROR;
+        return GC_FAILURE;
+    }
+#endif
 
     gc_state.initialized = true;
     gc_state.owner_thread_id = current_thread_id;
@@ -552,11 +590,15 @@ void gc_shutdown(void)
     }
 
     canaries_valid = gc_allocator_validate_all(gc_state.allocations);
+    if (gc_state.barrier_handler != NULL) {
+        (void)RemoveVectoredExceptionHandler(gc_state.barrier_handler);
+    }
     gc_roots_destroy_all(gc_state.roots);
     gc_old_pages_destroy(gc_state.old_pages);
     gc_allocator_destroy_all(gc_state.allocations);
     gc_state.initialized = false;
     gc_state.owner_thread_id = 0;
+    gc_state.barrier_handler = NULL;
     gc_state.stack_low = (uintptr_t)0;
     gc_state.stack_high = (uintptr_t)0;
     gc_state.page_size = 0;
@@ -655,6 +697,32 @@ bool gc_internal_get_old_page_info(const void *address,
     }
     *base = page->base;
     *size = page->size;
+    return true;
+}
+
+bool gc_internal_get_old_page_state(const void *address,
+                                    bool *dirty,
+                                    bool *is_protected)
+{
+    const GCOldPage *page;
+
+    if (dirty != NULL) {
+        *dirty = false;
+    }
+    if (is_protected != NULL) {
+        *is_protected = false;
+    }
+    if (!gc_state.initialized || !gc_is_owner_thread()
+        || address == NULL || dirty == NULL || is_protected == NULL) {
+        return false;
+    }
+
+    page = gc_old_pages_find(gc_state.old_pages, address);
+    if (page == NULL) {
+        return false;
+    }
+    *dirty = page->dirty;
+    *is_protected = page->protected;
     return true;
 }
 

@@ -12,6 +12,9 @@ size_t gc_internal_old_page_count(void);
 bool gc_internal_get_old_page_info(const void *address,
                                    void **base,
                                    size_t *size);
+bool gc_internal_get_old_page_state(const void *address,
+                                    bool *dirty,
+                                    bool *is_protected);
 size_t gc_internal_collection_request_count(void);
 size_t gc_internal_root_count(void);
 bool gc_internal_get_root_value(void **root, void **value);

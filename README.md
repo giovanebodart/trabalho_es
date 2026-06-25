@@ -134,6 +134,12 @@ por enquanto entram apenas objetos antigos em mapeamentos dedicados por
 protegíveis ainda, porque suas páginas podem conter jovens, blocos livres e
 ponteiros de freelist usados internamente pelo alocador.
 
+No build normal, páginas antigas protegíveis são marcadas como somente leitura
+com `VirtualProtect()`. A primeira escrita válida instala a barreira: o tratador
+vetorizado marca a página como suja e restaura permissão de escrita. Em builds
+com AddressSanitizer, essa proteção fica desativada para evitar conflito entre
+SEH, shadow memory e páginas protegidas pelo runtime do sanitizador.
+
 O benchmark `bench_scale_allocations` percorre estágios graduais de escala,
 observando tempo total, pausa da coleta, memória reservada no pico, bytes vivos
 após a coleta e bytes recuperados em uma tabela com legenda no terminal.

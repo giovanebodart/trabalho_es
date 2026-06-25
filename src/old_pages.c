@@ -1,3 +1,8 @@
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+
 #include "old_pages.h"
 
 #include <stdint.h>
@@ -44,6 +49,8 @@ static GCOldPageResult gc_old_pages_push(GCOldPage **pages,
     }
     page->base = allocation->mapping;
     page->size = allocation->reserved_size;
+    page->dirty = false;
+    page->protected = false;
     page->next = *pages;
     *pages = page;
     return GC_OLD_PAGE_OK;
@@ -97,6 +104,52 @@ const GCOldPage *gc_old_pages_find(const GCOldPage *pages,
         pages = pages->next;
     }
     return NULL;
+}
+
+bool gc_old_pages_protect(GCOldPage *pages)
+{
+    while (pages != NULL) {
+#if GC_OLD_PAGES_PROTECTION_SUPPORTED
+        DWORD old_protect;
+
+        if (!pages->protected
+            && !VirtualProtect(pages->base, pages->size,
+                               PAGE_READONLY, &old_protect)) {
+            return false;
+        }
+        pages->dirty = false;
+        pages->protected = true;
+#else
+        pages->dirty = false;
+        pages->protected = false;
+#endif
+        pages = pages->next;
+    }
+    return true;
+}
+
+bool gc_old_pages_unprotect_for_write(GCOldPage *pages,
+                                      const void *address)
+{
+    GCOldPage *page = (GCOldPage *)gc_old_pages_find(pages, address);
+#if GC_OLD_PAGES_PROTECTION_SUPPORTED
+    DWORD old_protect;
+#endif
+
+    if (page == NULL || !page->protected) {
+        return false;
+    }
+#if GC_OLD_PAGES_PROTECTION_SUPPORTED
+    if (!VirtualProtect(page->base, page->size,
+                        PAGE_READWRITE, &old_protect)) {
+        return false;
+    }
+    page->dirty = true;
+    page->protected = false;
+    return true;
+#else
+    return false;
+#endif
 }
 
 size_t gc_old_pages_count(const GCOldPage *pages)
