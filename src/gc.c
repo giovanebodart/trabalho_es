@@ -27,6 +27,7 @@ typedef struct {
     uintptr_t stack_high;
     size_t page_size;
     size_t memory_limit;
+    size_t promotion_threshold;
     size_t collection_request_count;
     size_t allocation_count;
     size_t root_count;
@@ -44,6 +45,7 @@ static GCState gc_state = {
     (uintptr_t)0,
     0,
     GC_DEFAULT_MEMORY_LIMIT,
+    GC_DEFAULT_PROMOTION_THRESHOLD,
     0,
     0,
     0,
@@ -340,6 +342,26 @@ int gc_set_memory_limit(size_t bytes)
     return GC_SUCCESS;
 }
 
+int gc_set_promotion_threshold(size_t survivals)
+{
+    if (!gc_state.initialized) {
+        gc_state.status = GC_STATUS_NOT_INITIALIZED;
+        return GC_FAILURE;
+    }
+    if (!gc_is_owner_thread()) {
+        gc_state.status = GC_STATUS_WRONG_THREAD;
+        return GC_FAILURE;
+    }
+    if (survivals == 0) {
+        gc_state.status = GC_STATUS_INVALID_ARGUMENT;
+        return GC_FAILURE;
+    }
+
+    gc_state.promotion_threshold = survivals;
+    gc_state.status = GC_STATUS_OK;
+    return GC_SUCCESS;
+}
+
 int gc_get_stats(GCStats *out)
 {
     if (out == NULL) {
@@ -472,7 +494,8 @@ void gc_collect(void)
     before_count = gc_state.allocation_count;
     if (gc_sweep_young(&gc_state.allocations, &gc_state.allocation_tree,
                        &gc_state.allocation_count,
-                       &gc_state.stats) != GC_SWEEP_OK) {
+                       &gc_state.stats,
+                       gc_state.promotion_threshold) != GC_SWEEP_OK) {
         gc_clear_marks();
         gc_state.status = GC_STATUS_INTERNAL_ERROR;
         return;
@@ -515,6 +538,7 @@ void gc_shutdown(void)
     gc_state.stack_high = (uintptr_t)0;
     gc_state.page_size = 0;
     gc_state.memory_limit = GC_DEFAULT_MEMORY_LIMIT;
+    gc_state.promotion_threshold = GC_DEFAULT_PROMOTION_THRESHOLD;
     gc_state.collection_request_count = 0;
     gc_state.allocation_count = 0;
     gc_state.root_count = 0;
@@ -572,6 +596,11 @@ size_t gc_internal_allocation_count(void)
 size_t gc_internal_memory_limit(void)
 {
     return gc_state.memory_limit;
+}
+
+size_t gc_internal_promotion_threshold(void)
+{
+    return gc_state.promotion_threshold;
 }
 
 size_t gc_internal_collection_request_count(void)

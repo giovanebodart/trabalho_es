@@ -17,10 +17,12 @@ typedef enum {
 GCSweepResult gc_sweep(GCAllocation **allocations,
                        IntervalNode **tree,
                        size_t *allocation_count,
-                       GCStats *stats);
+                       GCStats *stats,
+                       size_t promotion_threshold);
 GCSweepResult gc_sweep_young(GCAllocation **allocations,
                              IntervalNode **tree,
                              size_t *allocation_count,
-                             GCStats *stats);
+                             GCStats *stats,
+                             size_t promotion_threshold);
 
 #endif

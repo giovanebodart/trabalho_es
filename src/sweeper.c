@@ -60,12 +60,14 @@ static GCSweepResult gc_sweep_scope(GCAllocation **allocations,
                                     IntervalNode **tree,
                                     size_t *allocation_count,
                                     GCStats *stats,
+                                    size_t promotion_threshold,
                                     GCSweepScope scope)
 {
     GCAllocation **link;
 
     if (allocations == NULL || tree == NULL
-        || allocation_count == NULL || stats == NULL) {
+        || allocation_count == NULL || stats == NULL
+        || promotion_threshold == 0) {
         return GC_SWEEP_INVALID;
     }
     if (!gc_sweep_state_valid(*allocations, *allocation_count, stats)) {
@@ -82,7 +84,8 @@ static GCSweepResult gc_sweep_scope(GCAllocation **allocations,
 
         if (allocation->marked || !collectable) {
             if (allocation->marked && collectable) {
-                gc_allocator_record_survival(allocation);
+                gc_allocator_record_survival(allocation,
+                                             promotion_threshold);
             }
             allocation->marked = false;
             link = &allocation->next;
@@ -122,17 +125,21 @@ static GCSweepResult gc_sweep_scope(GCAllocation **allocations,
 GCSweepResult gc_sweep(GCAllocation **allocations,
                        IntervalNode **tree,
                        size_t *allocation_count,
-                       GCStats *stats)
+                       GCStats *stats,
+                       size_t promotion_threshold)
 {
     return gc_sweep_scope(allocations, tree, allocation_count, stats,
+                          promotion_threshold,
                           GC_SWEEP_SCOPE_ALL);
 }
 
 GCSweepResult gc_sweep_young(GCAllocation **allocations,
                              IntervalNode **tree,
                              size_t *allocation_count,
-                             GCStats *stats)
+                             GCStats *stats,
+                             size_t promotion_threshold)
 {
     return gc_sweep_scope(allocations, tree, allocation_count, stats,
+                          promotion_threshold,
                           GC_SWEEP_SCOPE_YOUNG);
 }

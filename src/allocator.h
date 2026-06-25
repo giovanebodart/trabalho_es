@@ -27,7 +27,8 @@ bool gc_allocator_validate_canaries(const GCAllocation *allocation);
 bool gc_allocator_validate_all(const GCAllocation *allocation);
 bool gc_allocator_corrupt_canary(GCAllocation *allocation,
                                  bool after_object);
-void gc_allocator_record_survival(GCAllocation *allocation);
+void gc_allocator_record_survival(GCAllocation *allocation,
+                                  size_t promotion_threshold);
 bool gc_allocator_destroy_one(GCAllocation *allocation);
 void gc_allocator_destroy_all(GCAllocation *allocation);
 #endif

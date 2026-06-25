@@ -28,6 +28,15 @@ static DWORD WINAPI set_limit_from_other_thread(LPVOID context)
     return 0;
 }
 
+static DWORD WINAPI set_promotion_threshold_from_other_thread(
+    LPVOID context)
+{
+    size_t threshold = *(const size_t *)context;
+
+    (void)gc_set_promotion_threshold(threshold);
+    return 0;
+}
+
 static DWORD WINAPI add_root_from_other_thread(LPVOID context)
 {
     (void)gc_add_root((void **)context);
@@ -211,6 +220,40 @@ static int test_virtual_alloc_objects(void)
     TEST_ASSERT(VirtualQuery(small, &memory_info, sizeof memory_info)
                 == sizeof memory_info);
     TEST_ASSERT(memory_info.State == MEM_FREE);
+    return EXIT_SUCCESS;
+}
+
+static int test_promotion_threshold_configuration(void)
+{
+    const size_t threshold = 1;
+    HANDLE thread;
+    DWORD wait_result;
+
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_init());
+    TEST_ASSERT(gc_internal_promotion_threshold()
+                == GC_DEFAULT_PROMOTION_THRESHOLD);
+    TEST_ASSERT_EQ_INT(GC_FAILURE, gc_set_promotion_threshold(0));
+    TEST_ASSERT_EQ_INT(GC_STATUS_INVALID_ARGUMENT, gc_get_status());
+    TEST_ASSERT(gc_internal_promotion_threshold()
+                == GC_DEFAULT_PROMOTION_THRESHOLD);
+
+    thread = CreateThread(NULL, 0,
+                          set_promotion_threshold_from_other_thread,
+                          (LPVOID)&threshold, 0, NULL);
+    TEST_ASSERT(thread != NULL);
+    wait_result = WaitForSingleObject(thread, INFINITE);
+    TEST_ASSERT(CloseHandle(thread));
+    TEST_ASSERT(wait_result == WAIT_OBJECT_0);
+    TEST_ASSERT_EQ_INT(GC_STATUS_WRONG_THREAD, gc_get_status());
+    TEST_ASSERT(gc_internal_promotion_threshold()
+                == GC_DEFAULT_PROMOTION_THRESHOLD);
+
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_set_promotion_threshold(threshold));
+    TEST_ASSERT(gc_internal_promotion_threshold() == threshold);
+    gc_shutdown();
+    TEST_ASSERT_EQ_INT(GC_STATUS_OK, gc_get_status());
+    TEST_ASSERT(gc_internal_promotion_threshold()
+                == GC_DEFAULT_PROMOTION_THRESHOLD);
     return EXIT_SUCCESS;
 }
 
@@ -455,6 +498,8 @@ int main(void)
     TEST_ASSERT_EQ_INT(GC_STATUS_NOT_INITIALIZED, gc_get_status());
     TEST_ASSERT_EQ_INT(GC_FAILURE, gc_set_memory_limit(4096));
     TEST_ASSERT_EQ_INT(GC_STATUS_NOT_INITIALIZED, gc_get_status());
+    TEST_ASSERT_EQ_INT(GC_FAILURE, gc_set_promotion_threshold(1));
+    TEST_ASSERT_EQ_INT(GC_STATUS_NOT_INITIALIZED, gc_get_status());
     TEST_ASSERT_EQ_INT(GC_FAILURE, gc_add_root(NULL));
     TEST_ASSERT_EQ_INT(GC_STATUS_NOT_INITIALIZED, gc_get_status());
     TEST_ASSERT_EQ_INT(GC_FAILURE, gc_remove_root(NULL));
@@ -469,6 +514,8 @@ int main(void)
                        test_stack_limits_and_thread_ownership());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_virtual_alloc_objects());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_memory_pressure());
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS,
+                       test_promotion_threshold_configuration());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_debug_canaries());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_explicit_roots());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_mark_sweep_collection());

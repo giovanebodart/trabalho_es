@@ -121,9 +121,12 @@ vivo daquela arena é coletado.
 As alocações novas entram na geração jovem. `gc_collect()` executa uma coleta
 menor: marca raízes explícitas, pilha, registradores e, provisoriamente, todos
 os objetos antigos como raízes conservadoras; em seguida varre apenas objetos
-jovens não marcados. Essa varredura preserva referências antiga-para-jovem de
-forma segura até os próximos commits adicionarem promoção, páginas antigas,
-barreira de escrita e remembered set.
+jovens não marcados. Objetos jovens promovem para a geração antiga após
+`GC_DEFAULT_PROMOTION_THRESHOLD` sobrevivências, cujo padrão é 2 e pode ser
+ajustado com `gc_set_promotion_threshold()`. Essa varredura preserva
+referências antiga-para-jovem de forma segura até os próximos commits
+adicionarem páginas antigas, barreira de escrita, remembered set e coleta
+maior.
 
 O benchmark `bench_scale_allocations` percorre estágios graduais de escala,
 observando tempo total, pausa da coleta, memória reservada no pico, bytes vivos

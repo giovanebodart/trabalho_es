@@ -1,6 +1,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
+#include "gc_config.h"
 #include "sweeper.h"
 #include "test.h"
 
@@ -56,7 +57,8 @@ static int test_sweep_releases_unmarked_objects(void)
     objects[3]->marked = true;
     TEST_ASSERT_EQ_INT(GC_SWEEP_OK,
                        gc_sweep(&allocations, &tree,
-                                &allocation_count, &stats));
+                                &allocation_count, &stats,
+                                GC_DEFAULT_PROMOTION_THRESHOLD));
     TEST_ASSERT(allocation_count == (size_t)2);
     TEST_ASSERT(stats.bytes_requested == total_requested);
     TEST_ASSERT(stats.bytes_live == sizes[1] + sizes[3]);
@@ -107,7 +109,8 @@ static int test_sweep_releases_unmarked_objects(void)
 
     TEST_ASSERT_EQ_INT(GC_SWEEP_OK,
                        gc_sweep(&allocations, &tree,
-                                &allocation_count, &stats));
+                                &allocation_count, &stats,
+                                GC_DEFAULT_PROMOTION_THRESHOLD));
     TEST_ASSERT(allocations == NULL);
     TEST_ASSERT(tree == NULL);
     TEST_ASSERT(allocation_count == (size_t)0);
@@ -161,7 +164,8 @@ static int test_minor_sweep_collects_only_young_objects(void)
     objects[2]->generation = GC_GENERATION_OLD;
     TEST_ASSERT_EQ_INT(GC_SWEEP_OK,
                        gc_sweep_young(&allocations, &tree,
-                                      &allocation_count, &stats));
+                                      &allocation_count, &stats,
+                                      GC_DEFAULT_PROMOTION_THRESHOLD));
     TEST_ASSERT(allocation_count == (size_t)2);
     TEST_ASSERT(!objects[0]->marked);
     TEST_ASSERT(!objects[2]->marked);
@@ -178,12 +182,72 @@ static int test_minor_sweep_collects_only_young_objects(void)
 
     TEST_ASSERT_EQ_INT(GC_SWEEP_OK,
                        gc_sweep(&allocations, &tree,
-                                &allocation_count, &stats));
+                                &allocation_count, &stats,
+                                GC_DEFAULT_PROMOTION_THRESHOLD));
     TEST_ASSERT(allocations == NULL);
     TEST_ASSERT(tree == NULL);
     TEST_ASSERT(allocation_count == (size_t)0);
     TEST_ASSERT(stats.bytes_live == (size_t)0);
     TEST_ASSERT(stats.bytes_collected == stats.bytes_requested);
+    gc_allocator_destroy_all(NULL);
+    return EXIT_SUCCESS;
+}
+
+static int test_young_survivor_is_promoted_by_threshold(void)
+{
+    const size_t size = 40;
+    GCAllocation *allocation;
+    GCAllocation *allocations = NULL;
+    IntervalNode *tree = NULL;
+    GCStats stats = {0};
+    SYSTEM_INFO system_info;
+    size_t allocation_count = 1;
+    size_t reserved;
+
+    GetSystemInfo(&system_info);
+    TEST_ASSERT(gc_allocator_reservation_size(
+        size, (size_t)system_info.dwPageSize, &reserved));
+    allocation = gc_allocator_create(size, reserved);
+    TEST_ASSERT(allocation != NULL);
+    TEST_ASSERT(interval_tree_insert(&tree, &allocation->interval));
+    allocations = allocation;
+    stats.bytes_requested = size;
+    stats.bytes_live = size;
+    stats.bytes_reserved = reserved;
+    stats.bytes_internal_fragmentation = reserved - size;
+
+    allocation->marked = true;
+    TEST_ASSERT_EQ_INT(GC_SWEEP_OK,
+                       gc_sweep_young(&allocations, &tree,
+                                      &allocation_count, &stats,
+                                      GC_DEFAULT_PROMOTION_THRESHOLD));
+    TEST_ASSERT(allocation->generation == GC_GENERATION_YOUNG);
+    TEST_ASSERT(allocation->survival_count == (size_t)1);
+
+    allocation->marked = true;
+    TEST_ASSERT_EQ_INT(GC_SWEEP_OK,
+                       gc_sweep_young(&allocations, &tree,
+                                      &allocation_count, &stats,
+                                      GC_DEFAULT_PROMOTION_THRESHOLD));
+    TEST_ASSERT(allocation->generation == GC_GENERATION_OLD);
+    TEST_ASSERT(allocation->survival_count == (size_t)2);
+
+    TEST_ASSERT_EQ_INT(GC_SWEEP_OK,
+                       gc_sweep_young(&allocations, &tree,
+                                      &allocation_count, &stats,
+                                      GC_DEFAULT_PROMOTION_THRESHOLD));
+    TEST_ASSERT(allocation_count == (size_t)1);
+    TEST_ASSERT(stats.bytes_live == size);
+
+    TEST_ASSERT_EQ_INT(GC_SWEEP_OK,
+                       gc_sweep(&allocations, &tree,
+                                &allocation_count, &stats,
+                                GC_DEFAULT_PROMOTION_THRESHOLD));
+    TEST_ASSERT(allocations == NULL);
+    TEST_ASSERT(tree == NULL);
+    TEST_ASSERT(allocation_count == (size_t)0);
+    TEST_ASSERT(stats.bytes_live == (size_t)0);
+    TEST_ASSERT(stats.bytes_collected == size);
     gc_allocator_destroy_all(NULL);
     return EXIT_SUCCESS;
 }
@@ -197,16 +261,24 @@ static int test_sweep_rejects_invalid_state(void)
     size_t count = 0;
 
     TEST_ASSERT_EQ_INT(GC_SWEEP_INVALID,
-                       gc_sweep(NULL, &tree, &count, &stats));
+                       gc_sweep(NULL, &tree, &count, &stats,
+                                GC_DEFAULT_PROMOTION_THRESHOLD));
     TEST_ASSERT_EQ_INT(GC_SWEEP_INVALID,
-                       gc_sweep(&allocations, NULL, &count, &stats));
+                       gc_sweep(&allocations, NULL, &count, &stats,
+                                GC_DEFAULT_PROMOTION_THRESHOLD));
     TEST_ASSERT_EQ_INT(GC_SWEEP_INVALID,
-                       gc_sweep(&allocations, &tree, NULL, &stats));
+                       gc_sweep(&allocations, &tree, NULL, &stats,
+                                GC_DEFAULT_PROMOTION_THRESHOLD));
     TEST_ASSERT_EQ_INT(GC_SWEEP_INVALID,
-                       gc_sweep(&allocations, &tree, &count, NULL));
+                       gc_sweep(&allocations, &tree, &count, NULL,
+                                GC_DEFAULT_PROMOTION_THRESHOLD));
+    TEST_ASSERT_EQ_INT(GC_SWEEP_INVALID,
+                       gc_sweep(&allocations, &tree, &count, &stats,
+                                (size_t)0));
     count = 1;
     TEST_ASSERT_EQ_INT(GC_SWEEP_STATS_ERROR,
-                       gc_sweep(&allocations, &tree, &count, &stats));
+                       gc_sweep(&allocations, &tree, &count, &stats,
+                                GC_DEFAULT_PROMOTION_THRESHOLD));
     fake.requested_size = 1;
     fake.reserved_size = 1;
     fake.dedicated_mapping = false;
@@ -217,12 +289,14 @@ static int test_sweep_rejects_invalid_state(void)
         .bytes_live = 1
     };
     TEST_ASSERT_EQ_INT(GC_SWEEP_TREE_ERROR,
-                       gc_sweep(&allocations, &tree, &count, &stats));
+                       gc_sweep(&allocations, &tree, &count, &stats,
+                                GC_DEFAULT_PROMOTION_THRESHOLD));
     allocations = NULL;
     count = 0;
     stats = (GCStats){0};
     TEST_ASSERT_EQ_INT(GC_SWEEP_OK,
-                       gc_sweep(&allocations, &tree, &count, &stats));
+                       gc_sweep(&allocations, &tree, &count, &stats,
+                                GC_DEFAULT_PROMOTION_THRESHOLD));
     return EXIT_SUCCESS;
 }
 
@@ -234,6 +308,8 @@ int main(void)
                        test_sweep_releases_unmarked_objects());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS,
                        test_minor_sweep_collects_only_young_objects());
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS,
+                       test_young_survivor_is_promoted_by_threshold());
     puts("test_sweeper: ok");
     return EXIT_SUCCESS;
 }

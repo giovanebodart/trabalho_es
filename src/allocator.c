@@ -467,10 +467,15 @@ bool gc_allocator_corrupt_canary(GCAllocation *allocation,
 #endif
 }
 
-void gc_allocator_record_survival(GCAllocation *allocation)
+void gc_allocator_record_survival(GCAllocation *allocation,
+                                  size_t promotion_threshold)
 {
     if (allocation != NULL && allocation->survival_count < SIZE_MAX) {
         ++allocation->survival_count;
+        if (allocation->generation == GC_GENERATION_YOUNG
+            && allocation->survival_count >= promotion_threshold) {
+            allocation->generation = GC_GENERATION_OLD;
+        }
     }
 }
 

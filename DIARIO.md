@@ -652,3 +652,16 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: build e suite normal passaram sem warnings; ASan/UBSan passaram; stress reduzido passou ate `100000` objetos com `vivos_pos_gc=0`; visualizador do coletor compilou sem warnings; diff total permaneceu abaixo dos limites do `SKILL.md`.
 - Erros da IA ou sugestoes rejeitadas: a primeira execucao de `sanitize` falhou em `test_register_roots` por uma premissa ABI fragil sob ASan; a tentativa de trocar o registrador fixo de `r12` para `rbx` tambem falhou e foi revertida; a solucao adotada foi documentar e limitar esse subteste ao build nao instrumentado.
 - Pendencias e proximo passo: revisar o diff final e criar o Commit 28, sugerido como `feat(gc): implementa coleta menor`; depois iniciar o Commit 29 para promocao configuravel de objetos sobreviventes.
+
+## 2026-06-25 11:36 - Promocao por sobrevivencia
+
+- Prompt/objetivo: continuar todos os commits em ordem; fechar localmente o Commit 29 apos o Commit 28.
+- Fase do PLAN.md: Fase 6 - Coletor geracional; Commit 29.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, API publica, configuracao, estado do coletor, alocador, sweep, testes integrados e testes do varredor.
+- Alteracoes realizadas: foi criado `GC_DEFAULT_PROMOTION_THRESHOLD`, a API `gc_set_promotion_threshold()`, estado interno para o limiar, promocao de objetos jovens para antigos apos sobrevivencias suficientes, passagem explicita do limiar ao sweep e testes para configuracao, promocao, permanencia em coleta menor e coleta posterior por sweep completo.
+- Decisoes e justificativas: o limiar fica no estado do coletor para ser configuravel por execucao; o sweep recebe o valor como parametro para evitar estado global escondido no alocador e facilitar testes deterministas. A coleta menor continua preservando antigos ate existir coleta maior no Commit 33.
+- Riscos ou erros procurados: promocao cedo demais, limiar zero, chamada da API fora do owner thread, estatisticas alteradas por sobrevivencia sem coleta, antigo sendo coletado por coleta menor, sweep completo deixando antigo morto vivo e assinatura antiga de `gc_sweep()` esquecida.
+- Testes executados: `mingw32-make all test`, `mingw32-make clean all test sanitize stress`, visualizador do coletor `-BuildOnly` e revisao de `git diff --numstat`.
+- Resultados: build, suite normal, ASan/UBSan, stress reduzido ate `100000` objetos e visualizador passaram sem warnings; diff permaneceu dentro dos limites do projeto.
+- Erros da IA ou sugestoes rejeitadas: a primeira compilacao encontrou uma chamada antiga de `gc_sweep()` sem o novo parametro de limiar; a chamada foi corrigida antes da validacao completa.
+- Pendencias e proximo passo: criar o Commit 29 local `feat(gc): promove sobreviventes`; depois iniciar o Commit 30 para organizar paginas antigas e preparar protecao por pagina.
