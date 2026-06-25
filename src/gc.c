@@ -221,12 +221,31 @@ static GCStatus gc_mark_roots(GCMarkQueue *queue)
     return status;
 }
 
-static GCStatus gc_mark_old_generation_roots(GCMarkQueue *queue)
+static bool gc_old_allocation_needs_minor_scan(
+    const GCAllocation *allocation)
+{
+    const GCOldPage *page;
+
+    if (allocation == NULL
+        || allocation->generation != GC_GENERATION_OLD) {
+        return false;
+    }
+#if !GC_OLD_PAGES_PROTECTION_SUPPORTED
+    return true;
+#endif
+    if (!allocation->dedicated_mapping) {
+        return true;
+    }
+    page = gc_old_pages_find(gc_state.old_pages, allocation->memory);
+    return page == NULL || page->dirty;
+}
+
+static GCStatus gc_mark_remembered_old_roots(GCMarkQueue *queue)
 {
     GCAllocation *allocation = gc_state.allocations;
 
     while (allocation != NULL) {
-        if (allocation->generation == GC_GENERATION_OLD) {
+        if (gc_old_allocation_needs_minor_scan(allocation)) {
             GCMarkQueueResult result = gc_mark_queue_push(queue,
                                                           allocation);
 
@@ -534,7 +553,7 @@ void gc_collect(void)
     gc_mark_queue_init(&queue);
     status = gc_mark_roots(&queue);
     if (status == GC_STATUS_OK) {
-        status = gc_mark_old_generation_roots(&queue);
+        status = gc_mark_remembered_old_roots(&queue);
     }
     if (status == GC_STATUS_OK) {
         status = gc_process_mark_queue(&queue, &examined);

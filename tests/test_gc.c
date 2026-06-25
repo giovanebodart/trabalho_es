@@ -446,6 +446,62 @@ static GC_TEST_NOINLINE void scrub_stack_roots(void)
     }
 }
 
+static uintptr_t remembered_old_address;
+static uintptr_t remembered_young_address;
+
+static GC_TEST_NOINLINE int promote_large_object_for_remembered_set(void)
+{
+    SYSTEM_INFO system_info;
+    void *root;
+
+    GetSystemInfo(&system_info);
+    root = gc_malloc((size_t)system_info.dwPageSize + (size_t)1);
+    TEST_ASSERT(root != NULL);
+    remembered_old_address = (uintptr_t)root;
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_add_root(&root));
+    gc_collect();
+    TEST_ASSERT_EQ_INT(GC_STATUS_OK, gc_get_status());
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_remove_root(&root));
+    root = NULL;
+    return EXIT_SUCCESS;
+}
+
+static GC_TEST_NOINLINE int store_young_reference_in_old_object(void)
+{
+    void *old_object = (void *)remembered_old_address;
+    void *young_object = gc_malloc(32);
+
+    TEST_ASSERT(young_object != NULL);
+    remembered_young_address = (uintptr_t)young_object;
+    store_pointer(old_object, 0, young_object);
+    old_object = NULL;
+    young_object = NULL;
+    return EXIT_SUCCESS;
+}
+
+static int test_dirty_old_page_preserves_young_reference(void)
+{
+    size_t requested;
+    size_t reserved;
+
+    remembered_old_address = (uintptr_t)0;
+    remembered_young_address = (uintptr_t)0;
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_init());
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_set_promotion_threshold(1));
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS,
+                       promote_large_object_for_remembered_set());
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS,
+                       store_young_reference_in_old_object());
+    scrub_stack_roots();
+    gc_collect();
+    TEST_ASSERT_EQ_INT(GC_STATUS_OK, gc_get_status());
+    TEST_ASSERT(gc_internal_get_allocation_info(
+        (void *)remembered_young_address, &requested, &reserved));
+    gc_shutdown();
+    TEST_ASSERT_EQ_INT(GC_STATUS_OK, gc_get_status());
+    return EXIT_SUCCESS;
+}
+
 static GC_TEST_NOINLINE int allocate_unrooted_object(void)
 {
     void *object = gc_malloc(32);
@@ -569,6 +625,8 @@ int main(void)
                        test_old_page_tracking_after_promotion());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_debug_canaries());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_explicit_roots());
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS,
+                       test_dirty_old_page_preserves_young_reference());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_mark_sweep_collection());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_unrooted_object_collection());
     puts("test_gc: ok");

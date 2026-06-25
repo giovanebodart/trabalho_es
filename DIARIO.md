@@ -691,3 +691,16 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: build normal exercitou a escrita real em pagina protegida; suite normal, ASan/UBSan com barreira desativada, stress reduzido ate `100000` objetos e visualizador passaram sem warnings.
 - Erros da IA ou sugestoes rejeitadas: a primeira versao deixava o handler ativo sob ASan e `test_gc` caia com `EXCEPTION_ACCESS_VIOLATION`; a detecao foi ajustada para desativar handler e protecao no build sanitizado.
 - Pendencias e proximo passo: criar o Commit 31 local `feat(gc): adiciona barreira de escrita`; depois iniciar o Commit 32 para usar paginas sujas como remembered set.
+
+## 2026-06-25 12:03 - Remembered set de paginas sujas
+
+- Prompt/objetivo: continuar em ordem e implementar o Commit 32.
+- Fase do PLAN.md: Fase 6 - Coletor geracional; Commit 32.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, estado do coletor, barreira, tabela de paginas antigas, testes integrados e README.
+- Alteracoes realizadas: a coleta menor deixou de enfileirar todos os antigos protegiveis; paginas antigas dedicadas so sao escaneadas quando estao sujas, formando o remembered set; objetos antigos em arenas pequenas continuam escaneados conservadoramente; apos cada coleta, a tabela e reconstruida, limpa e reprotegida.
+- Decisoes e justificativas: paginas limpas podem ser ignoradas com seguranca porque uma referencia nova antiga-para-jovem exigiria escrita e, portanto, sujaria a pagina. Como arenas pequenas ainda nao sao protegidas, elas permanecem no caminho conservador para preservar corretude.
+- Riscos ou erros procurados: jovem referenciado apenas por velho sujo sendo coletado, velho pequeno deixando de ser escaneado, pagina limpa varrida desnecessariamente, dirty bit nao limpo apos coleta, diferenca entre build normal e ASan e retencao por variaveis locais nos testes.
+- Testes executados: `mingw32-make all test`, `mingw32-make clean all test sanitize stress`, visualizador do coletor `-BuildOnly`, `git diff --numstat` e `git diff --check`.
+- Resultados: suite normal, ASan/UBSan, stress reduzido ate `100000` objetos e visualizador passaram sem warnings; teste integrado confirmou que um jovem apontado apenas por pagina antiga suja sobrevive a coleta menor.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado nesta etapa.
+- Pendencias e proximo passo: criar o Commit 32 local `feat(gc): usa remembered set`; depois iniciar o Commit 33 para coleta maior sobre as duas geracoes.

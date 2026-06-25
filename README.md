@@ -140,6 +140,12 @@ vetorizado marca a página como suja e restaura permissão de escrita. Em builds
 com AddressSanitizer, essa proteção fica desativada para evitar conflito entre
 SEH, shadow memory e páginas protegidas pelo runtime do sanitizador.
 
+Durante uma coleta menor, o remembered set é formado pelas páginas antigas
+sujas. O coletor examina essas páginas em busca de referências para jovens,
+enquanto objetos antigos pequenos ainda são escaneados conservadoramente por
+não estarem protegidos por página. Após a coleta, a tabela é reconstruída,
+limpa e reprotegida quando a barreira está ativa.
+
 O benchmark `bench_scale_allocations` percorre estágios graduais de escala,
 observando tempo total, pausa da coleta, memória reservada no pico, bytes vivos
 após a coleta e bytes recuperados em uma tabela com legenda no terminal.
