@@ -257,6 +257,39 @@ static int test_promotion_threshold_configuration(void)
     return EXIT_SUCCESS;
 }
 
+static int test_old_page_tracking_after_promotion(void)
+{
+    SYSTEM_INFO system_info;
+    void *root;
+    void *page_base = NULL;
+    size_t page_size = 0;
+    size_t requested = 0;
+    size_t reserved = 0;
+
+    GetSystemInfo(&system_info);
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_init());
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_set_promotion_threshold(1));
+    root = gc_malloc((size_t)system_info.dwPageSize + (size_t)1);
+    TEST_ASSERT(root != NULL);
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_add_root(&root));
+    gc_collect();
+    TEST_ASSERT_EQ_INT(GC_STATUS_OK, gc_get_status());
+    TEST_ASSERT(gc_internal_old_page_count() == (size_t)1);
+    TEST_ASSERT(gc_internal_get_allocation_info(root,
+                                                &requested,
+                                                &reserved));
+    TEST_ASSERT(gc_internal_get_old_page_info(root,
+                                              &page_base,
+                                              &page_size));
+    TEST_ASSERT(page_base != NULL);
+    TEST_ASSERT(page_size == reserved);
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_remove_root(&root));
+    gc_shutdown();
+    TEST_ASSERT_EQ_INT(GC_STATUS_OK, gc_get_status());
+    TEST_ASSERT(gc_internal_old_page_count() == (size_t)0);
+    return EXIT_SUCCESS;
+}
+
 static int test_memory_pressure(void)
 {
     SYSTEM_INFO system_info;
@@ -516,6 +549,8 @@ int main(void)
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_memory_pressure());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS,
                        test_promotion_threshold_configuration());
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS,
+                       test_old_page_tracking_after_promotion());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_debug_canaries());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_explicit_roots());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_mark_sweep_collection());

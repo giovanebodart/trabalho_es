@@ -13,6 +13,7 @@
 #include "gc.h"
 #include "gc_internal.h"
 #include "marker.h"
+#include "old_pages.h"
 #include "register_roots.h"
 #include "roots.h"
 #include "stack_roots.h"
@@ -33,6 +34,7 @@ typedef struct {
     size_t root_count;
     GCAllocation *allocations;
     IntervalNode *allocation_tree;
+    GCOldPage *old_pages;
     GCRoot *roots;
     GCStats stats;
     GCStatus status;
@@ -49,6 +51,7 @@ static GCState gc_state = {
     0,
     0,
     0,
+    NULL,
     NULL,
     NULL,
     NULL,
@@ -233,6 +236,20 @@ static GCStatus gc_process_mark_queue(GCMarkQueue *queue,
         if (result != GC_MARK_SCAN_OK) {
             return GC_STATUS_INTERNAL_ERROR;
         }
+    }
+    return GC_STATUS_OK;
+}
+
+static GCStatus gc_rebuild_old_pages(void)
+{
+    GCOldPageResult result = gc_old_pages_rebuild(&gc_state.old_pages,
+                                                  gc_state.allocations);
+
+    if (result == GC_OLD_PAGE_OUT_OF_MEMORY) {
+        return GC_STATUS_OUT_OF_MEMORY;
+    }
+    if (result != GC_OLD_PAGE_OK) {
+        return GC_STATUS_INTERNAL_ERROR;
     }
     return GC_STATUS_OK;
 }
@@ -500,6 +517,11 @@ void gc_collect(void)
         gc_state.status = GC_STATUS_INTERNAL_ERROR;
         return;
     }
+    status = gc_rebuild_old_pages();
+    if (status != GC_STATUS_OK) {
+        gc_state.status = status;
+        return;
+    }
     if (!QueryPerformanceCounter(&end) || end.QuadPart < start.QuadPart) {
         gc_state.status = GC_STATUS_TIMER_ERROR;
         return;
@@ -531,6 +553,7 @@ void gc_shutdown(void)
 
     canaries_valid = gc_allocator_validate_all(gc_state.allocations);
     gc_roots_destroy_all(gc_state.roots);
+    gc_old_pages_destroy(gc_state.old_pages);
     gc_allocator_destroy_all(gc_state.allocations);
     gc_state.initialized = false;
     gc_state.owner_thread_id = 0;
@@ -544,6 +567,7 @@ void gc_shutdown(void)
     gc_state.root_count = 0;
     gc_state.allocations = NULL;
     gc_state.allocation_tree = NULL;
+    gc_state.old_pages = NULL;
     gc_state.roots = NULL;
     gc_state.stats = (GCStats){0};
     gc_state.status = canaries_valid
@@ -601,6 +625,37 @@ size_t gc_internal_memory_limit(void)
 size_t gc_internal_promotion_threshold(void)
 {
     return gc_state.promotion_threshold;
+}
+
+size_t gc_internal_old_page_count(void)
+{
+    return gc_old_pages_count(gc_state.old_pages);
+}
+
+bool gc_internal_get_old_page_info(const void *address,
+                                   void **base,
+                                   size_t *size)
+{
+    const GCOldPage *page;
+
+    if (base != NULL) {
+        *base = NULL;
+    }
+    if (size != NULL) {
+        *size = 0;
+    }
+    if (!gc_state.initialized || !gc_is_owner_thread()
+        || address == NULL || base == NULL || size == NULL) {
+        return false;
+    }
+
+    page = gc_old_pages_find(gc_state.old_pages, address);
+    if (page == NULL) {
+        return false;
+    }
+    *base = page->base;
+    *size = page->size;
+    return true;
 }
 
 size_t gc_internal_collection_request_count(void)

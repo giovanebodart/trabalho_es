@@ -128,6 +128,12 @@ referências antiga-para-jovem de forma segura até os próximos commits
 adicionarem páginas antigas, barreira de escrita, remembered set e coleta
 maior.
 
+O coletor mantém uma tabela interna de páginas antigas candidatas à proteção:
+por enquanto entram apenas objetos antigos em mapeamentos dedicados por
+`VirtualAlloc()`. Objetos antigos pequenos que vivem em arenas não são
+protegíveis ainda, porque suas páginas podem conter jovens, blocos livres e
+ponteiros de freelist usados internamente pelo alocador.
+
 O benchmark `bench_scale_allocations` percorre estágios graduais de escala,
 observando tempo total, pausa da coleta, memória reservada no pico, bytes vivos
 após a coleta e bytes recuperados em uma tabela com legenda no terminal.

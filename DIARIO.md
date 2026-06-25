@@ -665,3 +665,16 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: build, suite normal, ASan/UBSan, stress reduzido ate `100000` objetos e visualizador passaram sem warnings; diff permaneceu dentro dos limites do projeto.
 - Erros da IA ou sugestoes rejeitadas: a primeira compilacao encontrou uma chamada antiga de `gc_sweep()` sem o novo parametro de limiar; a chamada foi corrigida antes da validacao completa.
 - Pendencias e proximo passo: criar o Commit 29 local `feat(gc): promove sobreviventes`; depois iniciar o Commit 30 para organizar paginas antigas e preparar protecao por pagina.
+
+## 2026-06-25 11:42 - Tabela de paginas antigas
+
+- Prompt/objetivo: continuar em ordem e implementar o Commit 30.
+- Fase do PLAN.md: Fase 6 - Coletor geracional; Commit 30.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `Makefile`, `README.md`, estado do coletor, alocador, promocoes, visualizador e testes existentes.
+- Alteracoes realizadas: criado o modulo `old_pages` para reconstruir uma tabela de regioes antigas protegiveis; o coletor passa a manter essa tabela apos cada coleta; testes cobrem objetos antigos grandes em mapeamentos dedicados, exclusao de objetos pequenos em arenas e consulta interna apos promocao; build, sanitizacao e visualizador foram atualizados para linkar `old_pages.c`.
+- Decisoes e justificativas: apenas objetos antigos com mapeamento dedicado entram na tabela, pois seus metadados ficam fora da pagina e a regiao nao contem freelists nem jovens misturados. Objetos pequenos em arenas sao preservados, mas ainda nao sao candidatos a `VirtualProtect()` para evitar proteger paginas com estruturas mutaveis do alocador.
+- Riscos ou erros procurados: metadados dentro de pagina protegivel, pagina antiga pequena com freelist, objeto jovem entrando na tabela, estouro de endereco ao calcular intervalo, vazamento da tabela no shutdown, visualizador sem novo modulo e regressao da coleta menor.
+- Testes executados: `mingw32-make all test`, `mingw32-make clean all test sanitize stress`, visualizador do coletor `-BuildOnly`, revisao de diffs e contagem de linhas dos novos arquivos.
+- Resultados: suite normal, ASan/UBSan, stress reduzido ate `100000` objetos e visualizador passaram sem warnings; o primeiro build do visualizador falhou por falta de `old_pages.c` no script e passou apos a correcao; o teste novo foi enxugado para manter o commit no limite total de linhas.
+- Erros da IA ou sugestoes rejeitadas: a lista de fontes do visualizador foi esquecida inicialmente; a validacao especifica detectou o problema antes do commit.
+- Pendencias e proximo passo: criar o Commit 30 local `feat(gc): organiza paginas antigas`; depois iniciar o Commit 31 para instalar a barreira com `VirtualProtect()` e tratador vetorizado.
