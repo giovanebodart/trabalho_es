@@ -155,6 +155,19 @@ static void gc_clear_marks(void)
     }
 }
 
+static bool gc_validate_integrity(void)
+{
+    if (!gc_allocator_validate_all(gc_state.allocations)) {
+        return false;
+    }
+#ifndef NDEBUG
+    if (!interval_tree_validate(gc_state.allocation_tree)) {
+        return false;
+    }
+#endif
+    return true;
+}
+
 static GCStatus gc_mark_explicit_roots(GCMarkQueue *queue)
 {
     GCRoot *root = gc_state.roots;
@@ -560,7 +573,7 @@ void gc_collect(void)
         gc_state.status = GC_STATUS_TIMER_ERROR;
         return;
     }
-    if (!gc_allocator_validate_all(gc_state.allocations)) {
+    if (!gc_validate_integrity()) {
         gc_state.status = GC_STATUS_CORRUPTED_MEMORY;
         return;
     }
@@ -596,6 +609,10 @@ void gc_collect(void)
     status = gc_rebuild_old_pages();
     if (status != GC_STATUS_OK) {
         gc_state.status = status;
+        return;
+    }
+    if (!gc_validate_integrity()) {
+        gc_state.status = GC_STATUS_CORRUPTED_MEMORY;
         return;
     }
     if (!QueryPerformanceCounter(&end) || end.QuadPart < start.QuadPart) {

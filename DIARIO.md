@@ -717,3 +717,16 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: suite normal, ASan/UBSan, stress reduzido ate `100000` objetos e visualizador passaram sem warnings; teste integrado confirmou que a coleta maior automatica recupera um objeto antigo promovido e sem raiz.
 - Erros da IA ou sugestoes rejeitadas: nenhum identificado nesta etapa.
 - Pendencias e proximo passo: criar o Commit 33 local `feat(gc): implementa coleta maior`; depois iniciar o Commit 34 para ampliar testes de integridade.
+
+## 2026-06-25 12:12 - Integridade antes e depois da coleta
+
+- Prompt/objetivo: continuar em ordem e implementar o Commit 34.
+- Fase do PLAN.md: Fase 7 - Integridade e teste de fogo; Commit 34.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, validadores da arvore, canarios do alocador, `gc_collect()`, testes integrados e README.
+- Alteracoes realizadas: a coleta passou a validar canarios e, em debug, invariantes da arvore de intervalos antes e depois de marcar/varrer; o teste de canarios confirma que `gc_collect()` detecta corrupcao antes de prosseguir.
+- Decisoes e justificativas: a validacao ficou centralizada para cobrir coletas menores e maiores sem duplicar logica; em release os canarios e a validacao estrutural pesada continuam limitados ao que ja existia para preservar custo.
+- Riscos ou erros procurados: marcar objeto com canario corrompido, varrer com AVL inconsistente, falso positivo em build release, regressao de ASan/UBSan e status errado apos corrupcao.
+- Testes executados: `mingw32-make all test`, `mingw32-make clean all test sanitize stress`, visualizador do coletor `-BuildOnly`, `git diff --numstat` e `git diff --check`.
+- Resultados: suite normal, ASan/UBSan, stress reduzido ate `100000` objetos e visualizador passaram sem warnings.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado nesta etapa.
+- Pendencias e proximo passo: criar o Commit 34 local `test(gc): amplia verificacoes de integridade`; depois iniciar o Commit 35 para teste de fogo.

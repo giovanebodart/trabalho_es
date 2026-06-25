@@ -369,6 +369,8 @@ static int test_debug_canaries(void)
 
     TEST_ASSERT(gc_internal_corrupt_canary(object, true));
     TEST_ASSERT(!gc_internal_validate_canaries(object));
+    gc_collect();
+    TEST_ASSERT_EQ_INT(GC_STATUS_CORRUPTED_MEMORY, gc_get_status());
     gc_shutdown();
     TEST_ASSERT_EQ_INT(GC_STATUS_CORRUPTED_MEMORY, gc_get_status());
     return EXIT_SUCCESS;

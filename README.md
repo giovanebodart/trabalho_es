@@ -152,6 +152,10 @@ partir das raízes normais e varre jovens e antigos, permitindo recuperar lixo
 promovido. As estatísticas diferenciam contagem e última pausa de coletas
 menores e maiores.
 
+Em builds de debug, a coleta valida canários e invariantes da árvore de
+intervalos antes e depois de marcar/varrer. Corrupção detectada interrompe a
+coleta com `GC_STATUS_CORRUPTED_MEMORY`.
+
 O benchmark `bench_scale_allocations` percorre estágios graduais de escala,
 observando tempo total, pausa da coleta, memória reservada no pico, bytes vivos
 após a coleta e bytes recuperados em uma tabela com legenda no terminal.
