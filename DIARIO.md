@@ -730,3 +730,16 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: suite normal, ASan/UBSan, stress reduzido ate `100000` objetos e visualizador passaram sem warnings.
 - Erros da IA ou sugestoes rejeitadas: nenhum identificado nesta etapa.
 - Pendencias e proximo passo: criar o Commit 34 local `test(gc): amplia verificacoes de integridade`; depois iniciar o Commit 35 para teste de fogo.
+
+## 2026-06-25 12:17 - Teste de fogo deterministico
+
+- Prompt/objetivo: continuar em ordem e implementar o Commit 35.
+- Fase do PLAN.md: Fase 7 - Integridade e teste de fogo; Commit 35.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `Makefile`, benchmarks existentes, API publica do coletor, estatisticas e README.
+- Alteracoes realizadas: criado `benchmarks/fire_test.c`, integrado ao `all`, `stress` e `benchmark`; a carga cria ciclos e referencias cruzadas deterministicas, registra raizes com canarios, remove subconjuntos de raizes, executa coletas menores e maiores e verifica que objetos vivos mantem canarios; README documenta `bench_fire_test.exe --full`.
+- Decisoes e justificativas: o alvo `stress` usa `FIRE_STRESS_MAX=50000` por padrao para validar rapido; o modo `--full` permite chegar a `10^7` objetos manualmente, evitando rodar a escala maxima a cada commit.
+- Riscos ou erros procurados: objeto vivo coletado, ciclo morto retido indefinidamente, raiz removida ainda preservada por array nativo escaneado por engano, falta de coleta maior, estouro de memoria no modo padrao e regressao dos benchmarks existentes.
+- Testes executados: `mingw32-make all test stress`, `mingw32-make clean all test sanitize stress`, visualizador do coletor `-BuildOnly`, `git diff --numstat` e `git diff --check`.
+- Resultados: suite normal, ASan/UBSan, stress reduzido e visualizador passaram sem warnings; o teste de fogo com `50000` como limite executou tres ciclos e terminou cada um com `vivos=0`.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado nesta etapa.
+- Pendencias e proximo passo: criar o Commit 35 local `test(gc): cria teste de fogo`; depois iniciar o Commit 36 para executar sanitizadores e analisador dinamico.

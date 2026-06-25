@@ -62,16 +62,18 @@ Os testes ficam separados por módulo em `tests/test_*.c` e usam as macros de
 o GNU Make interrompa a suíte com código diferente de zero.
 
 O alvo `stress` executa a suíte normal e uma carga gradual de alocações até
-`SCALE_STRESS_MAX`, cujo padrão é `100000`. Para observar milhões de objetos,
-use:
+`SCALE_STRESS_MAX`, cujo padrão é `100000`, além de um teste de fogo
+determinístico até `FIRE_STRESS_MAX`, cujo padrão é `50000`. Para observar
+milhões de objetos, use:
 
 ```powershell
 mingw32-make benchmark SCALE_BENCHMARK_MAX=1000000
 .\build\bench_scale_allocations.exe --full
+.\build\bench_fire_test.exe --full
 ```
 
-O modo `--full` também percorre `10^7` objetos, portanto deve ser usado apenas
-depois de validar os estágios menores no ambiente atual.
+O modo `--full` dos benchmarks também percorre `10^7` objetos, portanto deve
+ser usado apenas depois de validar os estágios menores no ambiente atual.
 
 O alvo de sanitização usa Clang/LLVM com AddressSanitizer e
 UndefinedBehaviorSanitizer:
@@ -159,6 +161,10 @@ coleta com `GC_STATUS_CORRUPTED_MEMORY`.
 O benchmark `bench_scale_allocations` percorre estágios graduais de escala,
 observando tempo total, pausa da coleta, memória reservada no pico, bytes vivos
 após a coleta e bytes recuperados em uma tabela com legenda no terminal.
+O benchmark `bench_fire_test` cria ciclos e referências cruzadas
+determinísticas, mantém raízes verificadas por canários, remove subconjuntos de
+raízes e executa coletas menores e maiores para verificar sobrevivência dos
+objetos vivos.
 
 ## Documentação do desenvolvimento
 
