@@ -146,6 +146,12 @@ enquanto objetos antigos pequenos ainda são escaneados conservadoramente por
 não estarem protegidos por página. Após a coleta, a tabela é reconstruída,
 limpa e reprotegida quando a barreira está ativa.
 
+`gc_collect()` executa uma coleta maior completa após
+`GC_DEFAULT_MAJOR_COLLECTION_INTERVAL` coletas menores. A coleta maior marca a
+partir das raízes normais e varre jovens e antigos, permitindo recuperar lixo
+promovido. As estatísticas diferenciam contagem e última pausa de coletas
+menores e maiores.
+
 O benchmark `bench_scale_allocations` percorre estágios graduais de escala,
 observando tempo total, pausa da coleta, memória reservada no pico, bytes vivos
 após a coleta e bytes recuperados em uma tabela com legenda no terminal.

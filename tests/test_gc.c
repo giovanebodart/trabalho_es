@@ -502,6 +502,34 @@ static int test_dirty_old_page_preserves_young_reference(void)
     return EXIT_SUCCESS;
 }
 
+static int test_major_collection_reclaims_unrooted_old_object(void)
+{
+    GCStats stats;
+    size_t requested = 0;
+    size_t reserved = 0;
+    size_t index;
+
+    remembered_old_address = (uintptr_t)0;
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_init());
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_set_promotion_threshold(1));
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS,
+                       promote_large_object_for_remembered_set());
+    scrub_stack_roots();
+    for (index = 0; index < GC_DEFAULT_MAJOR_COLLECTION_INTERVAL; ++index) {
+        gc_collect();
+        TEST_ASSERT_EQ_INT(GC_STATUS_OK, gc_get_status());
+    }
+    TEST_ASSERT(!gc_internal_get_allocation_info(
+        (void *)remembered_old_address, &requested, &reserved));
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_get_stats(&stats));
+    TEST_ASSERT(stats.major_collection_count == (size_t)1);
+    TEST_ASSERT(stats.last_major_pause_ticks > (uint64_t)0);
+    TEST_ASSERT(gc_internal_allocation_count() == (size_t)0);
+    gc_shutdown();
+    TEST_ASSERT_EQ_INT(GC_STATUS_OK, gc_get_status());
+    return EXIT_SUCCESS;
+}
+
 static GC_TEST_NOINLINE int allocate_unrooted_object(void)
 {
     void *object = gc_malloc(32);
@@ -627,6 +655,8 @@ int main(void)
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_explicit_roots());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS,
                        test_dirty_old_page_preserves_young_reference());
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS,
+                       test_major_collection_reclaims_unrooted_old_object());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_mark_sweep_collection());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_unrooted_object_collection());
     puts("test_gc: ok");

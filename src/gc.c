@@ -30,6 +30,7 @@ typedef struct {
     size_t page_size;
     size_t memory_limit;
     size_t promotion_threshold;
+    size_t minor_collections_since_major;
     size_t collection_request_count;
     size_t allocation_count;
     size_t root_count;
@@ -50,6 +51,7 @@ static GCState gc_state = {
     0,
     GC_DEFAULT_MEMORY_LIMIT,
     GC_DEFAULT_PROMOTION_THRESHOLD,
+    0,
     0,
     0,
     0,
@@ -114,6 +116,12 @@ static void gc_request_collection(void)
     if (gc_state.collection_request_count < SIZE_MAX) {
         ++gc_state.collection_request_count;
     }
+}
+
+static bool gc_should_collect_major(void)
+{
+    return gc_state.minor_collections_since_major
+           >= GC_DEFAULT_MAJOR_COLLECTION_INTERVAL;
 }
 
 static bool gc_prepare_memory_pressure(size_t reserved,
@@ -526,6 +534,7 @@ void gc_collect(void)
     GCStatus status;
     size_t before_count;
     size_t examined;
+    bool collect_major;
 
     if (!gc_state.initialized) {
         gc_state.status = GC_STATUS_NOT_INITIALIZED;
@@ -535,7 +544,13 @@ void gc_collect(void)
         gc_state.status = GC_STATUS_WRONG_THREAD;
         return;
     }
-    if (gc_state.stats.collection_count == SIZE_MAX) {
+    collect_major = gc_should_collect_major();
+    if (gc_state.stats.collection_count == SIZE_MAX
+        || (collect_major
+            && gc_state.stats.major_collection_count == SIZE_MAX)
+        || (!collect_major
+            && (gc_state.stats.minor_collection_count == SIZE_MAX
+                || gc_state.minor_collections_since_major == SIZE_MAX))) {
         gc_state.status = GC_STATUS_SIZE_OVERFLOW;
         return;
     }
@@ -552,7 +567,7 @@ void gc_collect(void)
 
     gc_mark_queue_init(&queue);
     status = gc_mark_roots(&queue);
-    if (status == GC_STATUS_OK) {
+    if (!collect_major && status == GC_STATUS_OK) {
         status = gc_mark_remembered_old_roots(&queue);
     }
     if (status == GC_STATUS_OK) {
@@ -566,10 +581,14 @@ void gc_collect(void)
     }
 
     before_count = gc_state.allocation_count;
-    if (gc_sweep_young(&gc_state.allocations, &gc_state.allocation_tree,
-                       &gc_state.allocation_count,
-                       &gc_state.stats,
-                       gc_state.promotion_threshold) != GC_SWEEP_OK) {
+    if ((collect_major
+         ? gc_sweep(&gc_state.allocations, &gc_state.allocation_tree,
+                    &gc_state.allocation_count, &gc_state.stats,
+                    gc_state.promotion_threshold)
+         : gc_sweep_young(&gc_state.allocations, &gc_state.allocation_tree,
+                          &gc_state.allocation_count, &gc_state.stats,
+                          gc_state.promotion_threshold))
+        != GC_SWEEP_OK) {
         gc_clear_marks();
         gc_state.status = GC_STATUS_INTERNAL_ERROR;
         return;
@@ -585,6 +604,17 @@ void gc_collect(void)
     }
 
     ++gc_state.stats.collection_count;
+    if (collect_major) {
+        ++gc_state.stats.major_collection_count;
+        gc_state.minor_collections_since_major = 0;
+        gc_state.stats.last_major_pause_ticks =
+            (uint64_t)(end.QuadPart - start.QuadPart);
+    } else {
+        ++gc_state.stats.minor_collection_count;
+        ++gc_state.minor_collections_since_major;
+        gc_state.stats.last_minor_pause_ticks =
+            (uint64_t)(end.QuadPart - start.QuadPart);
+    }
     gc_state.stats.last_objects_examined = examined;
     gc_state.stats.last_objects_collected =
         before_count - gc_state.allocation_count;
@@ -623,6 +653,7 @@ void gc_shutdown(void)
     gc_state.page_size = 0;
     gc_state.memory_limit = GC_DEFAULT_MEMORY_LIMIT;
     gc_state.promotion_threshold = GC_DEFAULT_PROMOTION_THRESHOLD;
+    gc_state.minor_collections_since_major = 0;
     gc_state.collection_request_count = 0;
     gc_state.allocation_count = 0;
     gc_state.root_count = 0;

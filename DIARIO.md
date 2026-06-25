@@ -704,3 +704,16 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: suite normal, ASan/UBSan, stress reduzido ate `100000` objetos e visualizador passaram sem warnings; teste integrado confirmou que um jovem apontado apenas por pagina antiga suja sobrevive a coleta menor.
 - Erros da IA ou sugestoes rejeitadas: nenhum identificado nesta etapa.
 - Pendencias e proximo passo: criar o Commit 32 local `feat(gc): usa remembered set`; depois iniciar o Commit 33 para coleta maior sobre as duas geracoes.
+
+## 2026-06-25 12:08 - Coleta maior
+
+- Prompt/objetivo: continuar em ordem e implementar o Commit 33.
+- Fase do PLAN.md: Fase 6 - Coletor geracional; Commit 33.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, configuracao, estatisticas, `gc_collect()`, sweep, remembered set, testes integrados e README.
+- Alteracoes realizadas: `gc_collect()` passou a escolher coleta menor ou maior; a maior ocorre apos `GC_DEFAULT_MAJOR_COLLECTION_INTERVAL` coletas menores e varre jovens e antigos; estatisticas ganharam contadores e pausas separadas para menores e maiores; teste integrado confirma recuperacao de objeto antigo sem raiz.
+- Decisoes e justificativas: a politica por intervalo e simples, deterministica e suficiente para este marco; coletas menores continuam usando remembered set, enquanto a maior ignora remembered set e parte apenas das raizes normais para poder recuperar lixo promovido.
+- Riscos ou erros procurados: antigo morto nunca coletado, maior rodando cedo demais, contador de pausa errado, overflow dos novos contadores, pagina antiga protegida durante sweep completo, regressao do remembered set e retencao conservadora por stack nos testes.
+- Testes executados: `mingw32-make all test`, `mingw32-make clean all test sanitize stress`, visualizador do coletor `-BuildOnly`, `git diff --numstat` e `git diff --check`.
+- Resultados: suite normal, ASan/UBSan, stress reduzido ate `100000` objetos e visualizador passaram sem warnings; teste integrado confirmou que a coleta maior automatica recupera um objeto antigo promovido e sem raiz.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado nesta etapa.
+- Pendencias e proximo passo: criar o Commit 33 local `feat(gc): implementa coleta maior`; depois iniciar o Commit 34 para ampliar testes de integridade.
