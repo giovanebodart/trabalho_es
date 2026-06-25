@@ -67,6 +67,7 @@ GCSweepResult gc_sweep(GCAllocation **allocations,
         GCAllocation *allocation = *link;
 
         if (allocation->marked) {
+            gc_allocator_record_survival(allocation);
             allocation->marked = false;
             link = &allocation->next;
             continue;

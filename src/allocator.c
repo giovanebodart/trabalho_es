@@ -396,6 +396,8 @@ GCAllocation *gc_allocator_create(size_t requested, size_t reserved)
 
     allocation->requested_size = requested;
     allocation->reserved_size = reserved;
+    allocation->survival_count = 0;
+    allocation->generation = GC_GENERATION_YOUNG;
     allocation->dedicated_mapping = dedicated;
     allocation->marked = false;
     allocation->next = NULL;
@@ -463,6 +465,13 @@ bool gc_allocator_corrupt_canary(GCAllocation *allocation,
     (void)after_object;
     return false;
 #endif
+}
+
+void gc_allocator_record_survival(GCAllocation *allocation)
+{
+    if (allocation != NULL && allocation->survival_count < SIZE_MAX) {
+        ++allocation->survival_count;
+    }
 }
 
 bool gc_allocator_destroy_one(GCAllocation *allocation)

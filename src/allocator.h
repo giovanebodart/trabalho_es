@@ -4,12 +4,18 @@
 #include "interval_tree.h"
 #include <stdbool.h>
 #include <stddef.h>
+typedef enum {
+    GC_GENERATION_YOUNG = 0,
+    GC_GENERATION_OLD = 1
+} GCGeneration;
 typedef struct GCAllocation {
     IntervalNode interval;
     void *mapping;
     void *memory;
     size_t requested_size;
     size_t reserved_size;
+    size_t survival_count;
+    GCGeneration generation;
     bool dedicated_mapping;
     bool marked;
     struct GCAllocation *next;
@@ -21,6 +27,7 @@ bool gc_allocator_validate_canaries(const GCAllocation *allocation);
 bool gc_allocator_validate_all(const GCAllocation *allocation);
 bool gc_allocator_corrupt_canary(GCAllocation *allocation,
                                  bool after_object);
+void gc_allocator_record_survival(GCAllocation *allocation);
 bool gc_allocator_destroy_one(GCAllocation *allocation);
 void gc_allocator_destroy_all(GCAllocation *allocation);
 #endif

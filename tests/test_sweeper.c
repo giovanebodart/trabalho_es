@@ -35,6 +35,8 @@ static int test_sweep_releases_unmarked_objects(void)
             sizes[index], (size_t)system_info.dwPageSize, &reserved));
         objects[index] = gc_allocator_create(sizes[index], reserved);
         TEST_ASSERT(objects[index] != NULL);
+        TEST_ASSERT(objects[index]->generation == GC_GENERATION_YOUNG);
+        TEST_ASSERT(objects[index]->survival_count == (size_t)0);
         TEST_ASSERT(interval_tree_insert(&tree, &objects[index]->interval));
         objects[index]->next = allocations;
         allocations = objects[index];
@@ -66,6 +68,10 @@ static int test_sweep_releases_unmarked_objects(void)
                 == objects[1]->reserved_size - sizes[1]
                    + objects[3]->reserved_size - sizes[3]);
     TEST_ASSERT(!objects[1]->marked && !objects[3]->marked);
+    TEST_ASSERT(objects[1]->generation == GC_GENERATION_YOUNG);
+    TEST_ASSERT(objects[3]->generation == GC_GENERATION_YOUNG);
+    TEST_ASSERT(objects[1]->survival_count == (size_t)1);
+    TEST_ASSERT(objects[3]->survival_count == (size_t)1);
     TEST_ASSERT(interval_tree_find(tree, (uintptr_t)memories[1])
                 == &objects[1]->interval);
     TEST_ASSERT(interval_tree_find(tree, (uintptr_t)memories[3])
@@ -89,6 +95,8 @@ static int test_sweep_releases_unmarked_objects(void)
     }
     replacement = gc_allocator_create(sizes[0], reused_reserved);
     TEST_ASSERT(replacement != NULL);
+    TEST_ASSERT(replacement->generation == GC_GENERATION_YOUNG);
+    TEST_ASSERT(replacement->survival_count == (size_t)0);
     TEST_ASSERT(replacement->mapping == reused_mapping);
     TEST_ASSERT(replacement->memory == memories[0]);
     TEST_ASSERT(((unsigned char *)replacement->memory)[0] == 0);
