@@ -743,3 +743,16 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: suite normal, ASan/UBSan, stress reduzido e visualizador passaram sem warnings; o teste de fogo com `50000` como limite executou tres ciclos e terminou cada um com `vivos=0`.
 - Erros da IA ou sugestoes rejeitadas: nenhum identificado nesta etapa.
 - Pendencias e proximo passo: criar o Commit 35 local `test(gc): cria teste de fogo`; depois iniciar o Commit 36 para executar sanitizadores e analisador dinamico.
+
+## 2026-06-25 12:20 - Validacao dinamica
+
+- Prompt/objetivo: continuar em ordem e executar o Commit 36.
+- Fase do PLAN.md: Fase 7 - Integridade e teste de fogo; Commit 36.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, `Makefile`, disponibilidade de Dr. Memory e estado Git.
+- Alteracoes realizadas: registrada no README a indisponibilidade atual do Dr. Memory; nenhuma alteracao funcional foi necessaria.
+- Decisoes e justificativas: ASan e UBSan sao executados pelo alvo `sanitize`; Dr. Memory foi procurado com `Get-Command` e `where.exe`, mas nao esta instalado no PATH, entao ficou documentado como validacao complementar pendente de ferramenta.
+- Riscos ou erros procurados: erro de memoria reportado por ASan, UB reportado por UBSan, regressao do teste de fogo, falso positivo relacionado a barreira desativada no build sanitizado e ferramenta dinamica ausente sendo tratada como sucesso.
+- Testes executados: `mingw32-make clean all test sanitize stress`, visualizador do coletor `-BuildOnly`, `Get-Command drmemory`, `where.exe drmemory`, `git diff --numstat` e `git diff --check`.
+- Resultados: suite normal, ASan/UBSan, stress reduzido e visualizador passaram sem warnings; Dr. Memory nao foi localizado no ambiente atual.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado nesta etapa.
+- Pendencias e proximo passo: criar o Commit 36 local `test(gc): registra validacao dinamica`; depois iniciar o Commit 37 para instrumentar metricas em CSV.

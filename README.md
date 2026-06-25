@@ -87,6 +87,9 @@ Esse alvo requer os pacotes `mingw-w64-clang-x86_64-clang` e
 padrão, o `Makefile` procura essa cadeia em `C:/msys64/clang64`; outro caminho
 pode ser informado com `SAN_ROOT`.
 
+Dr. Memory não está disponível no ambiente atual; quando instalado, deve ser
+executado como validação complementar aos sanitizadores.
+
 ## Visualizador da árvore
 
 O menu interativo gera todos os intervalos e endereços automaticamente:
