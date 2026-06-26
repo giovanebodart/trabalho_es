@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="540" viewBox="0 0 900 540">
+<style>
+text{font-family:Segoe UI,Arial,sans-serif;font-size:13px;fill:#172033}
+.title{font-size:22px;font-weight:700}
+.axis{stroke:#172033;stroke-width:1.5}
+.grid{stroke:#d8dee9;stroke-width:1}
+.legend{font-size:12px}
+</style>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="450" y="30" text-anchor="middle" class="title">Custo da arvore por quantidade de objetos</text>
+<line x1="92" y1="462" x2="864" y2="462" class="axis"/>
+<line x1="92" y1="54" x2="92" y2="462" class="axis"/>
+<line x1="92.00" y1="54" x2="92.00" y2="462" class="grid"/>
+<line x1="92" y1="54.00" x2="864" y2="54.00" class="grid"/>
+<text x="92.00" y="486" text-anchor="middle">1.0k</text>
+<text x="82" y="58.00" text-anchor="end">688.0k</text>
+<line x1="246.40" y1="54" x2="246.40" y2="462" class="grid"/>
+<line x1="92" y1="135.60" x2="864" y2="135.60" class="grid"/>
+<text x="246.40" y="486" text-anchor="middle">2.5k</text>
+<text x="82" y="139.60" text-anchor="end">550.4k</text>
+<line x1="400.80" y1="54" x2="400.80" y2="462" class="grid"/>
+<line x1="92" y1="217.20" x2="864" y2="217.20" class="grid"/>
+<text x="400.80" y="486" text-anchor="middle">6.3k</text>
+<text x="82" y="221.20" text-anchor="end">412.8k</text>
+<line x1="555.20" y1="54" x2="555.20" y2="462" class="grid"/>
+<line x1="92" y1="298.80" x2="864" y2="298.80" class="grid"/>
+<text x="555.20" y="486" text-anchor="middle">15.8k</text>
+<text x="82" y="302.80" text-anchor="end">275.2k</text>
+<line x1="709.60" y1="54" x2="709.60" y2="462" class="grid"/>
+<line x1="92" y1="380.40" x2="864" y2="380.40" class="grid"/>
+<text x="709.60" y="486" text-anchor="middle">39.8k</text>
+<text x="82" y="384.40" text-anchor="end">137.6k</text>
+<line x1="864.00" y1="54" x2="864.00" y2="462" class="grid"/>
+<line x1="92" y1="462.00" x2="864" y2="462.00" class="grid"/>
+<text x="864.00" y="486" text-anchor="middle">100.0k</text>
+<text x="82" y="466.00" text-anchor="end">0</text>
+<text x="450" y="520" text-anchor="middle">objetos (escala log10)</text>
+<text transform="translate(20 270) rotate(-90)" text-anchor="middle">ticks</text>
+<polyline fill="none" stroke="#2563eb" stroke-width="2.5" points="92.00,456.70 478.00,397.56 864.00,54.00"/>
+<circle cx="92.00" cy="456.70" r="4" fill="#2563eb"/>
+<circle cx="478.00" cy="397.56" r="4" fill="#2563eb"/>
+<circle cx="864.00" cy="54.00" r="4" fill="#2563eb"/>
+<rect x="696" y="62" width="12" height="12" fill="#2563eb"/>
+<text x="714" y="72" class="legend">insercao</text>
+<polyline fill="none" stroke="#dc2626" stroke-width="2.5" points="92.00,460.28 478.00,442.70 864.00,284.65"/>
+<circle cx="92.00" cy="460.28" r="4" fill="#dc2626"/>
+<circle cx="478.00" cy="442.70" r="4" fill="#dc2626"/>
+<circle cx="864.00" cy="284.65" r="4" fill="#dc2626"/>
+<rect x="696" y="82" width="12" height="12" fill="#dc2626"/>
+<text x="714" y="92" class="legend">busca</text>
+<polyline fill="none" stroke="#16a34a" stroke-width="2.5" points="92.00,457.56 478.00,421.31 864.00,118.20"/>
+<circle cx="92.00" cy="457.56" r="4" fill="#16a34a"/>
+<circle cx="478.00" cy="421.31" r="4" fill="#16a34a"/>
+<circle cx="864.00" cy="118.20" r="4" fill="#16a34a"/>
+<rect x="696" y="102" width="12" height="12" fill="#16a34a"/>
+<text x="714" y="112" class="legend">remocao</text>
+</svg>

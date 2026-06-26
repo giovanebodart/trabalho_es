@@ -47,6 +47,7 @@ mingw32-make all
 mingw32-make test
 mingw32-make stress
 mingw32-make benchmark
+mingw32-make plots
 ```
 
 O build utiliza as flags obrigatórias
@@ -79,6 +80,18 @@ mingw32-make benchmark SCALE_BENCHMARK_MAX=1000000
 
 O modo `--full` dos benchmarks também percorre `10^7` objetos, portanto deve
 ser usado apenas depois de validar os estágios menores no ambiente atual.
+
+Para regenerar os CSVs e os gráficos SVG sem editar valores manualmente:
+
+```powershell
+mingw32-make plots
+```
+
+Se `python` não estiver no `PATH`, informe o executável explicitamente com
+`PYTHON=C:/caminho/para/python.exe`. O alvo cria `data/scale.csv`,
+`data/fire.csv`, `data/tree.csv`, `data/collectors.csv` e os gráficos
+`plots/pause_vs_heap.svg`, `plots/memory_vs_progress.svg`,
+`plots/tree_cost_vs_objects.svg` e `plots/collector_pause_comparison.svg`.
 
 O alvo de sanitização usa Clang/LLVM com AddressSanitizer e
 UndefinedBehaviorSanitizer:
@@ -184,6 +197,9 @@ com o comportamento `O(log n)`.
 O benchmark `bench_compare_collectors` executa aquecimento e três repetições da
 mesma carga em mark-sweep puro e no coletor geracional, emitindo média, mediana
 e dispersão das pausas e do tempo total em tabela ou CSV.
+
+O script `scripts/generate_plots.py` consome os CSVs gerados pelos benchmarks e
+produz gráficos SVG reproduzíveis usando apenas a biblioteca padrão do Python.
 
 ## Documentação do desenvolvimento
 

@@ -821,3 +821,16 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: build estrito, testes, exemplos, ASan/UBSan, stress, benchmark completo, tabela e CSV do comparador passaram sem warnings ou falhas; `git diff --check` nao reportou problemas; Dr. Memory nao foi encontrado no `PATH`.
 - Erros da IA ou sugestoes rejeitadas: o teste inicial da nova opcao repetia a validacao de thread dona ja coberta em outros testes e foi removido para manter o commit dentro do limite definido no `SKILL.md`.
 - Pendencias e proximo passo: revisar o diff final e criar o commit `bench(gc): compara coletores`; depois seguir para o Commit 40, gerando graficos reproduziveis a partir dos dados dos benchmarks.
+
+## 2026-06-25 23:46 - Graficos reproduziveis dos benchmarks
+
+- Prompt/objetivo: prosseguir para o Commit 40 e gerar graficos reproduziveis, aceitando ultrapassar o limite apenas se necessario e registrando a excecao.
+- Fase do PLAN.md: Fase 8 - Benchmarks e graficos; Commit 40.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, `Makefile`, benchmarks CSV existentes, `scripts/`, `data/`, `plots/` e estado Git.
+- Alteracoes realizadas: criado `scripts/generate_plots.py`; adicionado alvo `plots` ao `Makefile`; README documenta a regeneracao; gerados `data/scale.csv`, `data/fire.csv`, `data/tree.csv`, `data/collectors.csv` e os SVGs `pause_vs_heap`, `memory_vs_progress`, `tree_cost_vs_objects` e `collector_pause_comparison`.
+- Decisoes e justificativas: o script usa apenas a biblioteca padrao do Python e le os CSVs produzidos pelos executaveis, evitando valores editados manualmente; o alvo `plots` aceita `PYTHON=...` porque o comando `python` nao esta no `PATH` deste ambiente. A parte escrita manualmente ficou dentro do limite do `SKILL.md`; os CSV/SVG sao artefatos gerados automaticamente e nao exigiram usar a excecao autorizada pelo usuario.
+- Riscos ou erros procurados: CSV ausente ou vazio, grafico gerado com valores manuais, SVG invalido, dependencia externa nao documentada, alvo `plots` quebrado no `cmd.exe`, whitespace invalido e mistura indevida de dados gerados com logica manual.
+- Testes executados: `mingw32-make plots PYTHON=C:/Users/giova/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe`, `mingw32-make clean all test sanitize stress plots PYTHON=C:/Users/giova/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe`, `python -m py_compile scripts/generate_plots.py`, parse XML dos SVGs com `xml.etree.ElementTree`, `git diff --check` e busca por whitespace final nos arquivos novos.
+- Resultados: build estrito, suite normal, ASan/UBSan, stress e alvo `plots` passaram; os quatro CSVs e quatro SVGs foram regenerados; XML dos SVGs e compilacao do script Python passaram; nao houve whitespace problematico.
+- Erros da IA ou sugestoes rejeitadas: a primeira versao do alvo `plots` usou caminhos `build/...` com redirecionamento, que o `cmd.exe` interpretou como comando `build`; foi corrigido para caminhos com barra invertida nas linhas que gravam CSV.
+- Pendencias e proximo passo: revisar o diff final e criar o commit `bench: gera graficos dos benchmarks` somente apos autorizacao; depois seguir para o Commit 41 de consolidacao da documentacao tecnica.

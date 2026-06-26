@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="540" viewBox="0 0 900 540">
+<style>
+text{font-family:Segoe UI,Arial,sans-serif;font-size:13px;fill:#172033}
+.title{font-size:22px;font-weight:700}
+.axis{stroke:#172033;stroke-width:1.5}
+.grid{stroke:#d8dee9;stroke-width:1}
+.legend{font-size:12px}
+</style>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="450" y="30" text-anchor="middle" class="title">Pausa media por algoritmo</text>
+<line x1="92" y1="462" x2="864" y2="462" class="axis"/>
+<line x1="92" y1="54" x2="92" y2="462" class="axis"/>
+<line x1="92" y1="54.00" x2="864" y2="54.00" class="grid"/>
+<text x="82" y="58.00" text-anchor="end">3.6M</text>
+<line x1="92" y1="135.60" x2="864" y2="135.60" class="grid"/>
+<text x="82" y="139.60" text-anchor="end">2.8M</text>
+<line x1="92" y1="217.20" x2="864" y2="217.20" class="grid"/>
+<text x="82" y="221.20" text-anchor="end">2.1M</text>
+<line x1="92" y1="298.80" x2="864" y2="298.80" class="grid"/>
+<text x="82" y="302.80" text-anchor="end">1.4M</text>
+<line x1="92" y1="380.40" x2="864" y2="380.40" class="grid"/>
+<text x="82" y="384.40" text-anchor="end">711.7k</text>
+<line x1="92" y1="462.00" x2="864" y2="462.00" class="grid"/>
+<text x="82" y="466.00" text-anchor="end">0</text>
+<text x="450" y="520" text-anchor="middle">algoritmo</text>
+<text transform="translate(20 270) rotate(-90)" text-anchor="middle">mean_pause_ticks</text>
+<rect x="188.50" y="165.37" width="193.00" height="296.63" fill="#2563eb"/>
+<text x="285.00" y="508" text-anchor="middle">mark_sweep</text>
+<text x="285.00" y="157.37" text-anchor="middle">2.6M</text>
+<rect x="574.50" y="54.00" width="193.00" height="408.00" fill="#dc2626"/>
+<text x="671.00" y="508" text-anchor="middle">generational</text>
+<text x="671.00" y="46.00" text-anchor="middle">3.6M</text>
+</svg>

@@ -1,0 +1,3 @@
+algorithm,objects,repetitions,mean_pause_ticks,median_pause_ticks,pause_range_ticks,mean_elapsed_ticks,median_elapsed_ticks,elapsed_range_ticks,collected_bytes,minor_collections,major_collections,promoted_objects
+mark_sweep,50000,3,2587211,2701035,417356,2905880,3027042,431773,1200000,0,7,49985
+generational,50000,3,3558598,3513272,273674,3889966,3824114,221143,1200000,6,1,49985

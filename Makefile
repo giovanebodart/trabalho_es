@@ -1,5 +1,6 @@
 CC := gcc
 CFLAGS := -std=c11 -Wall -Wextra -Werror -pedantic
+PYTHON ?= python
 SAN_ROOT ?= C:/msys64/clang64
 SAN_CC := $(SAN_ROOT)/bin/clang.exe
 SAN_RUNTIME_DIR := $(SAN_ROOT)/bin
@@ -8,9 +9,13 @@ SAN_FLAGS := $(CFLAGS) -g -O1 -fno-omit-frame-pointer \
 
 BUILD_DIR := build
 SANITIZE_DIR := $(BUILD_DIR)/sanitize
+DATA_DIR := data
+PLOTS_DIR := plots
 EXEEXT := .exe
 MKDIR_BUILD = if not exist "$(BUILD_DIR)" mkdir "$(BUILD_DIR)"
 MKDIR_SANITIZE = if not exist "$(SANITIZE_DIR)" mkdir "$(SANITIZE_DIR)"
+MKDIR_DATA = if not exist "$(DATA_DIR)" mkdir "$(DATA_DIR)"
+MKDIR_PLOTS = if not exist "$(PLOTS_DIR)" mkdir "$(PLOTS_DIR)"
 CLEAN_BUILD = if exist "$(BUILD_DIR)" rmdir /S /Q "$(BUILD_DIR)"
 
 TEST_NAMES := test_assertions test_gc test_interval_tree test_marker \
@@ -30,7 +35,7 @@ FIRE_BENCHMARK_MAX ?= 1000000
 TREE_BENCHMARK_MAX ?= 100000
 COMPARE_BENCHMARK_OBJECTS ?= 50000
 
-.PHONY: all test stress sanitize benchmark clean
+.PHONY: all test stress sanitize benchmark plots clean
 
 all: $(TEST_BINS) $(EXAMPLE_BINS) $(BENCHMARK_BINS)
 
@@ -182,6 +187,15 @@ benchmark: $(BENCHMARK_BINS)
 	$(BUILD_DIR)/bench_fire_test$(EXEEXT) $(FIRE_BENCHMARK_MAX)
 	$(BUILD_DIR)/bench_tree$(EXEEXT) $(TREE_BENCHMARK_MAX)
 	$(BUILD_DIR)/bench_compare_collectors$(EXEEXT) $(COMPARE_BENCHMARK_OBJECTS)
+
+plots: $(BENCHMARK_BINS)
+	$(MKDIR_DATA)
+	$(MKDIR_PLOTS)
+	$(subst /,\,$(BUILD_DIR)/bench_scale_allocations$(EXEEXT)) $(SCALE_BENCHMARK_MAX) --csv > $(DATA_DIR)\scale.csv
+	$(subst /,\,$(BUILD_DIR)/bench_fire_test$(EXEEXT)) $(FIRE_BENCHMARK_MAX) --csv > $(DATA_DIR)\fire.csv
+	$(subst /,\,$(BUILD_DIR)/bench_tree$(EXEEXT)) $(TREE_BENCHMARK_MAX) --csv > $(DATA_DIR)\tree.csv
+	$(subst /,\,$(BUILD_DIR)/bench_compare_collectors$(EXEEXT)) $(COMPARE_BENCHMARK_OBJECTS) --csv > $(DATA_DIR)\collectors.csv
+	$(PYTHON) scripts\generate_plots.py
 
 sanitize: $(SANITIZE_BINS) $(SANITIZE_EXAMPLE_BINS)
 	set "PATH=$(SAN_RUNTIME_DIR);%PATH%" && $(subst /,\,$(SANITIZE_DIR)/test_assertions$(EXEEXT))

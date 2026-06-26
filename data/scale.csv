@@ -1,0 +1,5 @@
+algorithm,seed,objects,heap_bytes,live_bytes,collected_bytes,pause_ticks,mark_ticks,sweep_ticks,tree_searches,tree_comparisons,minor_collections,major_collections,promoted_objects,dirty_pages,max_rss_bytes
+generational,0,1000,64000,0,32000,5608,1465,3800,2287,22870,1,0,0,0,4354048
+generational,0,10000,640000,0,320000,38108,2047,33665,2287,32018,1,0,0,0,6070272
+generational,0,100000,6400000,0,3200000,1082962,21100,1017773,2287,41638,1,0,0,0,21995520
+generational,0,1000000,64000000,0,32000000,7435072,260949,6616662,2287,50307,1,0,0,0,180744192
