@@ -208,5 +208,6 @@ produz gráficos SVG reproduzíveis usando apenas a biblioteca padrão do Python
 O roteiro completo está em `PLAN.md`, a documentação técnica consolidada está
 em `docs/TECHNICAL.md`, o relatório preparado para entrega está em
 `docs/REPORT.md`, a auditoria de autoria e defesa está em
-`docs/AUTHORSHIP_AUDIT.md`, e decisões, testes, limitações e prompts relevantes
-são registrados cronologicamente em `DIARIO.md`.
+`docs/AUTHORSHIP_AUDIT.md`, o candidato de entrega está registrado em
+`docs/RELEASE_CANDIDATE.md`, e decisões, testes, limitações e prompts
+relevantes são registrados cronologicamente em `DIARIO.md`.
