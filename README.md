@@ -35,7 +35,8 @@ páginas da memória virtual.
 - `examples/`: programas-cobaia;
 - `scripts/`: automação de benchmarks e gráficos;
 - `data/`: dados experimentais;
-- `plots/`: gráficos gerados.
+- `plots/`: gráficos gerados;
+- `docs/`: documentação técnica consolidada.
 
 ## Build inicial
 
@@ -129,8 +130,9 @@ para uma sequencia automatica ou `-BuildOnly` para somente compilar em debug.
 
 ## Estado atual
 
-O repositório está na Fase 8, Commit 39, comparando mark-sweep puro e coletor
-geracional sobre a mesma carga sintética. O alocador usa
+O repositório está na Fase 9, Commit 41, consolidando a documentação técnica
+após gerar benchmarks e gráficos reproduzíveis. A visão completa de arquitetura,
+módulos, validação e limitações está em `docs/TECHNICAL.md`. O alocador usa
 classes de tamanho para objetos pequenos, com blocos de 32, 64, 128, 256, 512 e
 1024 bytes distribuídos a partir de arenas de 64 KiB. Objetos maiores recebem
 mapeamentos dedicados por `VirtualAlloc()`.
@@ -203,5 +205,6 @@ produz gráficos SVG reproduzíveis usando apenas a biblioteca padrão do Python
 
 ## Documentação do desenvolvimento
 
-O roteiro completo está em `PLAN.md`. Decisões, testes, limitações e prompts
-relevantes são registrados cronologicamente em `DIARIO.md`.
+O roteiro completo está em `PLAN.md`, a documentação técnica consolidada está
+em `docs/TECHNICAL.md`, e decisões, testes, limitações e prompts relevantes são
+registrados cronologicamente em `DIARIO.md`.

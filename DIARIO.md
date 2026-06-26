@@ -834,3 +834,29 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: build estrito, suite normal, ASan/UBSan, stress e alvo `plots` passaram; os quatro CSVs e quatro SVGs foram regenerados; XML dos SVGs e compilacao do script Python passaram; nao houve whitespace problematico.
 - Erros da IA ou sugestoes rejeitadas: a primeira versao do alvo `plots` usou caminhos `build/...` com redirecionamento, que o `cmd.exe` interpretou como comando `build`; foi corrigido para caminhos com barra invertida nas linhas que gravam CSV.
 - Pendencias e proximo passo: revisar o diff final e criar o commit `bench: gera graficos dos benchmarks` somente apos autorizacao; depois seguir para o Commit 41 de consolidacao da documentacao tecnica.
+
+## 2026-06-26 00:04 - Alternativas ao Dr. Memory
+
+- Prompt/objetivo: responder se existe substituto direto para o Dr. Memory.
+- Fase do PLAN.md: Fase 9 - Entrega; contexto de validacao dinamica e documentacao tecnica apos o Commit 40.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `.gitignore`, estado Git e documentacao oficial do Dr. Memory, AddressSanitizer, Application Verifier, PageHeap/GFlags e Valgrind.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: a resposta distingue substituto direto de substitutos praticos em camadas; para este projeto Windows nativo, ASan/UBSan, Application Verifier/PageHeap e WinDbg podem complementar a validacao, mas nao substituem integralmente o Dr. Memory.
+- Riscos ou erros procurados: recomendar Valgrind como substituto direto para `.exe` Windows nativo, ignorar a necessidade de recompilacao do ASan, ou tratar Application Verifier/PageHeap como equivalente completo ao Dr. Memory.
+- Testes executados: `git diff --check` e revisao documental.
+- Resultados: explicacao registrada em `EXPLAIN.md`, que permanece ignorado por regra explicita do `.gitignore`; nenhum teste de codigo foi necessario.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: se desejado, consolidar essa recomendacao no Commit 41 de documentacao tecnica.
+
+## 2026-06-26 03:31 - Documentacao tecnica consolidada
+
+- Prompt/objetivo: fazer o Commit 41 do PLAN.md, consolidando a documentacao tecnica.
+- Fase do PLAN.md: Fase 9 - Entrega; Commit 41.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, `include/gc.h`, `include/gc_stats.h`, `include/gc_config.h`, `include/interval_tree.h`, `src/interval_tree.c`, `src/allocator.h`, `src/marker.h` e referencias de implementacao em `src/`, `tests/` e `benchmarks/`.
+- Alteracoes realizadas: criado `docs/TECHNICAL.md`; README agora referencia `docs/` e atualiza o estado para Fase 9/Commit 41.
+- Decisoes e justificativas: a consolidacao ficou em um documento proprio para nao sobrecarregar o README; o texto cobre arquitetura, modulos, testes, benchmarks, plataforma suportada, limitacoes conservadoras, barreira de escrita e relacao com Estruturas de Dados e Sistemas Operacionais.
+- Riscos ou erros procurados: documentar portabilidade nao validada, omitir limitacoes da barreira, tratar falsos positivos conservadores como erro de coleta, descrever multithread inexistente ou citar ferramentas dinamicas como equivalentes ao Dr. Memory.
+- Testes executados: `mingw32-make all test`, `git diff --check` e revisao documental do diff.
+- Resultados: documentacao consolidada sem alteracao de codigo; build e testes passaram; `git diff --check` nao apontou problemas.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: criar o commit `docs: consolida documentacao tecnica`; depois seguir para o Commit 42 de preparacao do relatorio.
