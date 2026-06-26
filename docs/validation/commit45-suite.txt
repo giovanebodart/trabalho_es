@@ -1,0 +1,158 @@
+if exist "build" rmdir /S /Q "build"
+if not exist "build" mkdir "build"
+gcc -std=c11 -Wall -Wextra -Werror -pedantic -Itests tests/test_assertions.c -o build/test_assertions.exe
+gcc -std=c11 -Wall -Wextra -Werror -pedantic -Iinclude -Isrc -Itests tests/test_gc.c \
+	src/gc.c src/allocator.c src/interval_tree.c src/marker.c src/old_pages.c src/register_roots.c src/roots.c src/stack_roots.c src/sweeper.c -o build/test_gc.exe -lpsapi
+gcc -std=c11 -Wall -Wextra -Werror -pedantic -Iinclude -Itests tests/test_interval_tree.c \
+	src/interval_tree.c -o build/test_interval_tree.exe
+gcc -std=c11 -Wall -Wextra -Werror -pedantic -Iinclude -Isrc -Itests tests/test_marker.c \
+	src/marker.c src/interval_tree.c -o build/test_marker.exe
+gcc -std=c11 -Wall -Wextra -Werror -pedantic -Iinclude -Isrc -Itests tests/test_old_pages.c \
+	src/old_pages.c src/allocator.c src/interval_tree.c -o build/test_old_pages.exe
+gcc -std=c11 -Wall -Wextra -Werror -pedantic -Iinclude -Isrc -Itests tests/test_register_roots.c \
+	src/register_roots.c src/marker.c src/interval_tree.c -o build/test_register_roots.exe
+gcc -std=c11 -Wall -Wextra -Werror -pedantic -Itests tests/test_smoke.c -o build/test_smoke.exe
+gcc -std=c11 -Wall -Wextra -Werror -pedantic -Iinclude -Isrc -Itests tests/test_stack_roots.c \
+	src/stack_roots.c src/marker.c src/interval_tree.c -o build/test_stack_roots.exe
+gcc -std=c11 -Wall -Wextra -Werror -pedantic -Iinclude -Isrc -Itests tests/test_sweeper.c \
+	src/sweeper.c src/allocator.c src/interval_tree.c -o build/test_sweeper.exe
+gcc -std=c11 -Wall -Wextra -Werror -pedantic -Iinclude -Isrc examples/list.c src/gc.c src/allocator.c src/interval_tree.c src/marker.c src/old_pages.c src/register_roots.c src/roots.c src/stack_roots.c src/sweeper.c -o build/example_list.exe -lpsapi
+gcc -std=c11 -Wall -Wextra -Werror -pedantic -Iinclude -Isrc examples/tree.c src/gc.c src/allocator.c src/interval_tree.c src/marker.c src/old_pages.c src/register_roots.c src/roots.c src/stack_roots.c src/sweeper.c -o build/example_tree.exe -lpsapi
+gcc -std=c11 -Wall -Wextra -Werror -pedantic -Iinclude -Isrc examples/cyclic_graph.c src/gc.c src/allocator.c src/interval_tree.c src/marker.c src/old_pages.c src/register_roots.c src/roots.c src/stack_roots.c src/sweeper.c -o build/example_cyclic_graph.exe -lpsapi
+gcc -std=c11 -Wall -Wextra -Werror -pedantic -Iinclude -Isrc benchmarks/scale_allocations.c src/gc.c src/allocator.c src/interval_tree.c src/marker.c src/old_pages.c src/register_roots.c src/roots.c src/stack_roots.c src/sweeper.c -o build/bench_scale_allocations.exe -lpsapi
+gcc -std=c11 -Wall -Wextra -Werror -pedantic -Iinclude -Isrc benchmarks/fire_test.c src/gc.c src/allocator.c src/interval_tree.c src/marker.c src/old_pages.c src/register_roots.c src/roots.c src/stack_roots.c src/sweeper.c -o build/bench_fire_test.exe -lpsapi
+gcc -std=c11 -Wall -Wextra -Werror -pedantic -Iinclude -Isrc benchmarks/tree.c src/gc.c src/allocator.c src/interval_tree.c src/marker.c src/old_pages.c src/register_roots.c src/roots.c src/stack_roots.c src/sweeper.c -o build/bench_tree.exe -lpsapi
+gcc -std=c11 -Wall -Wextra -Werror -pedantic -Iinclude -Isrc benchmarks/compare_collectors.c src/gc.c src/allocator.c src/interval_tree.c src/marker.c src/old_pages.c src/register_roots.c src/roots.c src/stack_roots.c src/sweeper.c -o build/bench_compare_collectors.exe -lpsapi
+build/test_assertions.exe
+test_assertions: ok
+build/test_gc.exe
+test_gc: ok
+build/test_interval_tree.exe
+test_interval_tree: ok
+build/test_marker.exe
+test_marker: ok
+build/test_old_pages.exe
+test_old_pages: ok
+build/test_register_roots.exe
+test_register_roots: ok
+build/test_smoke.exe
+test_smoke: ok
+build/test_stack_roots.exe
+test_stack_roots: ok
+build/test_sweeper.exe
+test_sweeper: ok
+build/example_list.exe
+example_list: ok
+build/example_tree.exe
+example_tree: ok
+build/example_cyclic_graph.exe
+example_cyclic_graph: ok
+if not exist "build/sanitize" mkdir "build/sanitize"
+C:/msys64/clang64/bin/clang.exe -std=c11 -Wall -Wextra -Werror -pedantic -g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined -Itests tests/test_assertions.c -o build/sanitize/test_assertions.exe
+C:/msys64/clang64/bin/clang.exe -std=c11 -Wall -Wextra -Werror -pedantic -g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined -Iinclude -Isrc -Itests tests/test_gc.c \
+	src/gc.c src/allocator.c src/interval_tree.c src/marker.c src/old_pages.c src/register_roots.c src/roots.c src/stack_roots.c src/sweeper.c -o build/sanitize/test_gc.exe -lpsapi
+C:/msys64/clang64/bin/clang.exe -std=c11 -Wall -Wextra -Werror -pedantic -g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined -Iinclude -Itests tests/test_interval_tree.c \
+	src/interval_tree.c -o build/sanitize/test_interval_tree.exe
+C:/msys64/clang64/bin/clang.exe -std=c11 -Wall -Wextra -Werror -pedantic -g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined -Iinclude -Isrc -Itests tests/test_marker.c \
+	src/marker.c src/interval_tree.c -o build/sanitize/test_marker.exe
+C:/msys64/clang64/bin/clang.exe -std=c11 -Wall -Wextra -Werror -pedantic -g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined -Iinclude -Isrc -Itests \
+	tests/test_old_pages.c src/old_pages.c src/allocator.c \
+	src/interval_tree.c -o build/sanitize/test_old_pages.exe
+C:/msys64/clang64/bin/clang.exe -std=c11 -Wall -Wextra -Werror -pedantic -g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined -Iinclude -Isrc -Itests \
+	tests/test_register_roots.c src/register_roots.c src/marker.c \
+	src/interval_tree.c -o build/sanitize/test_register_roots.exe
+C:/msys64/clang64/bin/clang.exe -std=c11 -Wall -Wextra -Werror -pedantic -g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined -Itests tests/test_smoke.c -o build/sanitize/test_smoke.exe
+C:/msys64/clang64/bin/clang.exe -std=c11 -Wall -Wextra -Werror -pedantic -g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined -Iinclude -Isrc -Itests \
+	tests/test_stack_roots.c src/stack_roots.c src/marker.c \
+	src/interval_tree.c -o build/sanitize/test_stack_roots.exe
+C:/msys64/clang64/bin/clang.exe -std=c11 -Wall -Wextra -Werror -pedantic -g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined -Iinclude -Isrc -Itests tests/test_sweeper.c \
+	src/sweeper.c src/allocator.c src/interval_tree.c -o build/sanitize/test_sweeper.exe
+C:/msys64/clang64/bin/clang.exe -std=c11 -Wall -Wextra -Werror -pedantic -g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined -Iinclude -Isrc examples/list.c src/gc.c src/allocator.c src/interval_tree.c src/marker.c src/old_pages.c src/register_roots.c src/roots.c src/stack_roots.c src/sweeper.c -o build/sanitize/example_list.exe -lpsapi
+C:/msys64/clang64/bin/clang.exe -std=c11 -Wall -Wextra -Werror -pedantic -g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined -Iinclude -Isrc examples/tree.c src/gc.c src/allocator.c src/interval_tree.c src/marker.c src/old_pages.c src/register_roots.c src/roots.c src/stack_roots.c src/sweeper.c -o build/sanitize/example_tree.exe -lpsapi
+C:/msys64/clang64/bin/clang.exe -std=c11 -Wall -Wextra -Werror -pedantic -g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined -Iinclude -Isrc examples/cyclic_graph.c src/gc.c src/allocator.c src/interval_tree.c src/marker.c src/old_pages.c src/register_roots.c src/roots.c src/stack_roots.c src/sweeper.c -o build/sanitize/example_cyclic_graph.exe -lpsapi
+set "PATH=C:/msys64/clang64/bin;%PATH%" && build\sanitize\test_assertions.exe
+test_assertions: ok
+set "PATH=C:/msys64/clang64/bin;%PATH%" && build\sanitize\test_gc.exe
+test_gc: ok
+set "PATH=C:/msys64/clang64/bin;%PATH%" && build\sanitize\test_interval_tree.exe
+test_interval_tree: ok
+set "PATH=C:/msys64/clang64/bin;%PATH%" && build\sanitize\test_marker.exe
+test_marker: ok
+set "PATH=C:/msys64/clang64/bin;%PATH%" && build\sanitize\test_old_pages.exe
+test_old_pages: ok
+set "PATH=C:/msys64/clang64/bin;%PATH%" && build\sanitize\test_register_roots.exe
+test_register_roots: ok
+set "PATH=C:/msys64/clang64/bin;%PATH%" && build\sanitize\test_smoke.exe
+test_smoke: ok
+set "PATH=C:/msys64/clang64/bin;%PATH%" && build\sanitize\test_stack_roots.exe
+test_stack_roots: ok
+set "PATH=C:/msys64/clang64/bin;%PATH%" && build\sanitize\test_sweeper.exe
+test_sweeper: ok
+set "PATH=C:/msys64/clang64/bin;%PATH%" && build\sanitize\example_list.exe
+example_list: ok
+set "PATH=C:/msys64/clang64/bin;%PATH%" && build\sanitize\example_tree.exe
+example_tree: ok
+set "PATH=C:/msys64/clang64/bin;%PATH%" && build\sanitize\example_cyclic_graph.exe
+example_cyclic_graph: ok
+build/bench_scale_allocations.exe 100000
+Benchmark gradual de alocacoes do coletor
+
+Legenda:
+  objetos        quantidade de objetos alocados no estagio
+  tempo_ms       tempo total do estagio, incluindo alocacao e coleta
+  pausa_ms       duracao da ultima pausa de gc_collect()
+  reservado      bytes reservados no pico antes da coleta
+  vivos_pos_gc   bytes vivos depois da coleta
+  coletados      bytes recuperados pela coleta
+
+   objetos |   tempo_ms |   pausa_ms |      reservado | vivos_pos_gc |    coletados
+-----------+------------+------------+----------------+--------------+-------------
+      1000 |      0.990 |      0.509 |          64000 |            0 |        32000
+     10000 |      9.389 |      4.627 |         640000 |            0 |       320000
+    100000 |    137.759 |     65.194 |        6400000 |            0 |      3200000
+build/bench_fire_test.exe 50000
+Teste de fogo deterministico do coletor
+ciclo=1 objetos=12500 vivos=0 coletados=300000 menores=9 maiores=2
+ciclo=2 objetos=16666 vivos=0 coletados=699984 menores=18 maiores=4
+ciclo=3 objetos=25000 vivos=0 coletados=1299984 menores=27 maiores=6
+build/bench_scale_allocations.exe 1000000
+Benchmark gradual de alocacoes do coletor
+
+Legenda:
+  objetos        quantidade de objetos alocados no estagio
+  tempo_ms       tempo total do estagio, incluindo alocacao e coleta
+  pausa_ms       duracao da ultima pausa de gc_collect()
+  reservado      bytes reservados no pico antes da coleta
+  vivos_pos_gc   bytes vivos depois da coleta
+  coletados      bytes recuperados pela coleta
+
+   objetos |   tempo_ms |   pausa_ms |      reservado | vivos_pos_gc |    coletados
+-----------+------------+------------+----------------+--------------+-------------
+      1000 |      2.289 |      1.139 |          64000 |            0 |        32000
+     10000 |     25.519 |     11.309 |         640000 |            0 |       320000
+    100000 |    182.440 |     63.343 |        6400000 |            0 |      3200000
+   1000000 |   1588.919 |    669.595 |       64000000 |            0 |     32000000
+build/bench_fire_test.exe 1000000
+Teste de fogo deterministico do coletor
+ciclo=1 objetos=250000 vivos=0 coletados=6000000 menores=9 maiores=2
+ciclo=2 objetos=333333 vivos=0 coletados=13999992 menores=18 maiores=4
+ciclo=3 objetos=500000 vivos=0 coletados=25999992 menores=27 maiores=6
+build/bench_tree.exe 100000
+Benchmark da arvore de intervalos
+      nos |  semente | rep | altura | log2 |     insert |       find |     remove | cmp_find
+----------+----------+-----+--------+------+------------+------------+------------+----------
+     1000 | 00c0ffef |   1 |     12 |   10 |       7336 |       2380 |       5563 |     9.17
+     1000 | 00c0fff0 |   2 |     12 |   10 |       6647 |       2312 |       5671 |     9.25
+     1000 | 00c0fff1 |   3 |     12 |   10 |       6301 |       2186 |       5123 |     9.21
+    10000 | 00c0ffef |   1 |     16 |   14 |      73397 |      27379 |      47637 |    12.55
+    10000 | 00c0fff0 |   2 |     16 |   14 |      43161 |      12936 |      44295 |    12.54
+    10000 | 00c0fff1 |   3 |     16 |   14 |      42702 |      10542 |      27622 |    12.59
+   100000 | 00c0ffef |   1 |     20 |   17 |     598368 |     268522 |     637683 |    15.99
+   100000 | 00c0fff0 |   2 |     20 |   17 |    1202646 |     292966 |     480359 |    15.90
+   100000 | 00c0fff1 |   3 |     20 |   17 |     743928 |     413453 |     638749 |    15.95
+build/bench_compare_collectors.exe 50000
+Comparacao entre mark-sweep puro e coletor geracional
+algoritmo    |  objetos | rep |   pause_mean |    pause_med |    pause_rng | elapsed_mean |  elapsed_med |  elapsed_rng
+-------------+----------+-----+--------------+--------------+--------------+--------------+--------------+--------------
+mark_sweep   |    50000 |   3 |      3002166 |      3042176 |      1669400 |      3459194 |      3735147 |      1671703
+generational |    50000 |   3 |      4545754 |      4381104 |      1200559 |      4923179 |      4931236 |      1158220

@@ -121,10 +121,10 @@ resume os dados principais.
 
 | Objetos | Heap reservado | Bytes coletados | Pausa (ticks) | RSS maximo |
 |---:|---:|---:|---:|---:|
-| 1.000 | 64.000 | 32.000 | 5.608 | 4.354.048 |
-| 10.000 | 640.000 | 320.000 | 38.108 | 6.070.272 |
-| 100.000 | 6.400.000 | 3.200.000 | 1.082.962 | 21.995.520 |
-| 1.000.000 | 64.000.000 | 32.000.000 | 7.435.072 | 180.744.192 |
+| 1.000     | 64.000       | 32.000           | 5.608        | 4.354.048 |
+| 10.000    | 640.000      | 320.000          | 38.108       | 6.070.272 |
+| 100.000   | 6.400.000    | 3.200.000        | 1.082.962    | 21.995.520 |
+| 1.000.000 | 64.000.000   | 32.000.000       | 7.435.072    | 180.744.192 |
 
 O crescimento de pausa acompanha o aumento do heap e do volume de objetos a
 examinar. A pausa nao cresce linearmente perfeita, pois o custo tambem depende
@@ -243,5 +243,18 @@ Os resultados confirmam que a arvore fornece comportamento logaritmico e que o
 coletor recupera ciclos e lixo conhecido nas cargas testadas. A comparacao entre
 mark-sweep puro e geracional mostra que a versao geracional ainda depende do
 perfil da carga para superar o custo adicional de sua infraestrutura. Como
-proximo passo, a equipe deve revisar autoria e defesa, executar auditoria final
-em ambiente limpo e preparar a versao candidata de entrega.
+proximo passo fora do codigo, a equipe deve preencher as evidencias humanas de
+autoria e preparar a defesa presencial usando `docs/AUTHORSHIP_AUDIT.md`.
+
+## 10. Validacao final
+
+A entrega final foi validada em 2026-06-26 com:
+
+```powershell
+mingw32-make clean all test sanitize stress benchmark
+```
+
+O comando terminou com `exit_code=0`. Os logs finais estao arquivados em
+`docs/validation/commit45-suite.txt` e
+`docs/validation/commit45-suite-exit.txt`. Nenhuma correcao de codigo foi
+necessaria na auditoria final.
