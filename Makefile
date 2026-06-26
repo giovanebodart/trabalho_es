@@ -21,12 +21,13 @@ SANITIZE_BINS := $(addprefix $(SANITIZE_DIR)/,$(addsuffix $(EXEEXT),$(TEST_NAMES
 EXAMPLE_NAMES := list tree cyclic_graph
 EXAMPLE_BINS := $(addprefix $(BUILD_DIR)/example_,$(addsuffix $(EXEEXT),$(EXAMPLE_NAMES)))
 SANITIZE_EXAMPLE_BINS := $(addprefix $(SANITIZE_DIR)/example_,$(addsuffix $(EXEEXT),$(EXAMPLE_NAMES)))
-BENCHMARK_NAMES := scale_allocations fire_test
+BENCHMARK_NAMES := scale_allocations fire_test tree
 BENCHMARK_BINS := $(addprefix $(BUILD_DIR)/bench_,$(addsuffix $(EXEEXT),$(BENCHMARK_NAMES)))
 SCALE_STRESS_MAX ?= 100000
 SCALE_BENCHMARK_MAX ?= 1000000
 FIRE_STRESS_MAX ?= 50000
 FIRE_BENCHMARK_MAX ?= 1000000
+TREE_BENCHMARK_MAX ?= 100000
 
 .PHONY: all test stress sanitize benchmark clean
 
@@ -175,10 +176,10 @@ stress: test $(BUILD_DIR)/bench_scale_allocations$(EXEEXT) \
 	$(BUILD_DIR)/bench_scale_allocations$(EXEEXT) $(SCALE_STRESS_MAX)
 	$(BUILD_DIR)/bench_fire_test$(EXEEXT) $(FIRE_STRESS_MAX)
 
-benchmark: $(BUILD_DIR)/bench_scale_allocations$(EXEEXT) \
-		$(BUILD_DIR)/bench_fire_test$(EXEEXT)
+benchmark: $(BENCHMARK_BINS)
 	$(BUILD_DIR)/bench_scale_allocations$(EXEEXT) $(SCALE_BENCHMARK_MAX)
 	$(BUILD_DIR)/bench_fire_test$(EXEEXT) $(FIRE_BENCHMARK_MAX)
+	$(BUILD_DIR)/bench_tree$(EXEEXT) $(TREE_BENCHMARK_MAX)
 
 sanitize: $(SANITIZE_BINS) $(SANITIZE_EXAMPLE_BINS)
 	set "PATH=$(SAN_RUNTIME_DIR);%PATH%" && $(subst /,\,$(SANITIZE_DIR)/test_assertions$(EXEEXT))

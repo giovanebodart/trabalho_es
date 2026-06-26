@@ -782,3 +782,29 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: build GCC estrito, suite normal, ASan/UBSan, stress, benchmark, CSVs e visualizador passaram sem warnings ou falhas; os CSVs passaram a exibir `pause_ticks`, `mark_ticks`, `sweep_ticks`, buscas/comparacoes da arvore, promocoes e `max_rss_bytes` diferentes de zero quando aplicavel. Dr. Memory nao foi encontrado no `PATH` e segue como validacao complementar pendente.
 - Erros da IA ou sugestoes rejeitadas: uma execucao inicial do CSV do teste de fogo foi paralelizada com a recompilacao e pegou binario antigo, mantendo `heap_bytes=0`; o teste foi repetido sequencialmente apos corrigir o pico pre-coleta. A revisao tambem detectou que uma falha intermediaria de timer poderia interromper a coleta depois da marcacao, entao os cronometros internos foram tornados nao fatais.
 - Pendencias e proximo passo: revisar o diff final e criar o commit `bench(gc): instrumenta metricas em CSV` somente apos autorizacao; depois iniciar o Commit 38 para benchmark especifico da arvore.
+
+## 2026-06-25 22:58 - Explicacao sobre Dr. Memory e Valgrind
+
+- Prompt/objetivo: responder, em `EXPLAIN.md`, o que é o Dr. Memory e se ele pode ser substituido pelo Valgrind, tratando como perguntas separadas.
+- Fase do PLAN.md: Fase 8 - Benchmarks e graficos; contexto de validacao dinamica posterior ao Commit 37.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `.gitignore` e estado Git.
+- Alteracoes realizadas: adicionadas duas entradas separadas em `EXPLAIN.md`, uma para Dr. Memory e outra para Valgrind.
+- Decisoes e justificativas: a explicacao foi relacionada ao ambiente real do projeto, que usa Windows 11 x86-64, executaveis MinGW/Win32 e APIs como `VirtualAlloc()`, `VirtualProtect()` e `AddVectoredExceptionHandler()`; `EXPLAIN.md` permanece local porque esta listado no `.gitignore`.
+- Riscos ou erros procurados: confundir Valgrind em WSL com validacao de binario Windows nativo, tratar Dr. Memory como requisito atualmente disponivel, ou sugerir portabilidade que nao foi testada.
+- Testes executados: `git diff --check` e revisao do diff documental.
+- Resultados: explicacoes registradas em `EXPLAIN.md`; nenhuma alteracao de codigo foi feita. `git check-ignore -v EXPLAIN.md` confirmou que o arquivo esta ignorado por regra explicita do `.gitignore`.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: se desejado, revisar e commitar apenas a documentacao; o proximo marco tecnico permanece o Commit 38 para benchmark especifico da arvore.
+
+## 2026-06-25 23:12 - Benchmark da arvore de intervalos
+
+- Prompt/objetivo: prosseguir para o Commit 38 e criar benchmark especifico da arvore.
+- Fase do PLAN.md: Fase 8 - Benchmarks e graficos; Commit 38.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `Makefile`, `README.md`, `include/interval_tree.h`, `src/interval_tree.c` e estado Git.
+- Alteracoes realizadas: criado `benchmarks/tree.c`; o `Makefile` passou a compilar `bench_tree.exe` e executa-lo no alvo `benchmark`; o README documenta o benchmark e o modo CSV.
+- Decisoes e justificativas: o benchmark usa tamanhos crescentes, tres repeticoes e sementes fixas; mede ticks agregados de insercao, busca e remocao; registra altura da AVL, `ceil(log2(n))` e media de comparacoes nas buscas para apoiar a comparacao empirica com `O(log n)`.
+- Riscos ou erros procurados: intervalos sobrepostos, busca fora do ponteiro interior esperado, remocao sem destacar o no correto, arvore nao vazia apos remocoes, overflow no calculo de enderecos, limite excessivo de entrada, resultados nao reprodutiveis e benchmark sem entrar no alvo `benchmark`.
+- Testes executados: `mingw32-make clean all test sanitize stress benchmark`, `.\build\bench_tree.exe 10000`, `.\build\bench_tree.exe 10000 --csv`, `.\build\bench_tree.exe 12345 --csv`, rejeicao controlada de `.\build\bench_tree.exe 1000001`, `git diff --check` e revisao de diff.
+- Resultados: build estrito, suite normal, ASan/UBSan, stress, benchmark completo e CSV do benchmark da arvore passaram; o benchmark mostrou alturas 12, 16 e 20 para 10^3, 10^4 e 10^5 nos, com medias de comparacoes de busca proximas a `ceil(log2(n))`.
+- Erros da IA ou sugestoes rejeitadas: a primeira compilacao falhou por usar sufixo `u` dentro de `UINT32_C(...)`; foi corrigido. Depois, uma validacao foi paralelizada com a execucao do mesmo `bench_tree.exe`, causando `Permission denied` no link; a validacao foi repetida sequencialmente.
+- Pendencias e proximo passo: revisar o diff final e criar o commit `bench(tree): mede operacoes da arvore` somente apos autorizacao; depois iniciar o Commit 39 para comparar mark-sweep puro e coletor geracional.

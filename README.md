@@ -70,8 +70,10 @@ milhões de objetos, use:
 mingw32-make benchmark SCALE_BENCHMARK_MAX=1000000
 .\build\bench_scale_allocations.exe --full
 .\build\bench_fire_test.exe --full
+.\build\bench_tree.exe --full
 .\build\bench_scale_allocations.exe 100000 --csv > data\scale.csv
 .\build\bench_fire_test.exe 50000 --csv > data\fire.csv
+.\build\bench_tree.exe 100000 --csv > data\tree.csv
 ```
 
 O modo `--full` dos benchmarks também percorre `10^7` objetos, portanto deve
@@ -171,6 +173,12 @@ objetos vivos. Ambos aceitam `--csv` e emitem colunas para algoritmo, semente,
 objetos, heap, bytes vivos, bytes coletados, pausa, marcação, sweep, buscas e
 comparações na árvore, coletas menores e maiores, promoções, páginas sujas e
 memória residente máxima amostrada pelo Windows.
+
+O benchmark `bench_tree` mede inserção, busca e remoção na árvore de
+intervalos com tamanhos crescentes, três repetições e sementes fixas. Ele
+registra altura observada, `ceil(log2(n))`, tempo por operação agregada em
+ticks e média de comparações nas buscas para apoiar a comparação experimental
+com o comportamento `O(log n)`.
 
 ## Documentação do desenvolvimento
 
