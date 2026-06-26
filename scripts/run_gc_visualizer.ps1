@@ -17,7 +17,7 @@ $arguments = @(
     "-std=c11", "-Wall", "-Wextra", "-Werror", "-pedantic",
     "-g3", "-O0", "-fno-omit-frame-pointer", "-I$include", "-I$source",
     (Join-Path $root "examples\gc_visualizer.c")
-) + $gcSources + @("-o", $executable)
+) + $gcSources + @("-o", $executable, "-lpsapi")
 Write-Host "Compilando visualizador do coletor em modo debug..."
 & $compiler @arguments
 if ($LASTEXITCODE -ne 0) { throw "A compilacao falhou: $LASTEXITCODE." }

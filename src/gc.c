@@ -7,6 +7,7 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <windows.h>
+#include <psapi.h>
 
 #include "allocator.h"
 #include "gc_config.h"
@@ -71,6 +72,27 @@ _Static_assert(offsetof(GCAllocation, interval) == 0,
 static bool gc_is_owner_thread(void)
 {
     return gc_state.owner_thread_id == GetCurrentThreadId();
+}
+
+static void gc_add_size_metric(size_t *total, size_t value)
+{
+    *total = *total > SIZE_MAX - value ? SIZE_MAX : *total + value;
+}
+
+static void gc_add_tick_metric(uint64_t *total, uint64_t value)
+{
+    *total = *total > UINT64_MAX - value ? UINT64_MAX : *total + value;
+}
+
+static void gc_update_resident_memory(void)
+{
+    PROCESS_MEMORY_COUNTERS counters;
+
+    if (GetProcessMemoryInfo(GetCurrentProcess(), &counters,
+                             sizeof counters)
+        && counters.WorkingSetSize > gc_state.stats.max_resident_bytes) {
+        gc_state.stats.max_resident_bytes = counters.WorkingSetSize;
+    }
 }
 
 #if GC_OLD_PAGES_PROTECTION_SUPPORTED
@@ -173,8 +195,9 @@ static GCStatus gc_mark_explicit_roots(GCMarkQueue *queue)
     GCRoot *root = gc_state.roots;
 
     while (root != NULL) {
-        IntervalNode *interval = interval_tree_find(
-            gc_state.allocation_tree, (uintptr_t)*root->location);
+        IntervalNode *interval = gc_mark_find_candidate(
+            gc_state.allocation_tree, (uintptr_t)*root->location,
+            queue);
 
         if (interval != NULL) {
             GCMarkQueueResult result = gc_mark_queue_push(
@@ -359,6 +382,7 @@ int gc_init(void)
     gc_state.stack_high = (uintptr_t)high;
     gc_state.page_size = (size_t)system_info.dwPageSize;
     gc_state.status = GC_STATUS_OK;
+    gc_update_resident_memory();
     return GC_SUCCESS;
 }
 
@@ -473,6 +497,7 @@ int gc_get_stats(GCStats *out)
         return GC_FAILURE;
     }
 
+    gc_update_resident_memory();
     *out = gc_state.stats;
     gc_state.status = GC_STATUS_OK;
     return GC_SUCCESS;
@@ -542,11 +567,20 @@ void gc_collect(void)
 {
     LARGE_INTEGER frequency;
     LARGE_INTEGER start;
+    LARGE_INTEGER mark_start;
+    LARGE_INTEGER mark_end;
+    LARGE_INTEGER sweep_end;
     LARGE_INTEGER end;
     GCMarkQueue queue;
     GCStatus status;
     size_t before_count;
+    size_t dirty_pages;
     size_t examined;
+    size_t tree_comparisons;
+    size_t tree_searches;
+    uint64_t mark_ticks;
+    uint64_t pause_ticks;
+    uint64_t sweep_ticks;
     bool collect_major;
 
     if (!gc_state.initialized) {
@@ -578,6 +612,13 @@ void gc_collect(void)
         return;
     }
 
+    dirty_pages = collect_major
+                  ? (size_t)0
+                  : gc_old_pages_dirty_count(gc_state.old_pages);
+    if (!QueryPerformanceCounter(&mark_start)) {
+        gc_state.status = GC_STATUS_TIMER_ERROR;
+        return;
+    }
     gc_mark_queue_init(&queue);
     status = gc_mark_roots(&queue);
     if (!collect_major && status == GC_STATUS_OK) {
@@ -586,11 +627,17 @@ void gc_collect(void)
     if (status == GC_STATUS_OK) {
         status = gc_process_mark_queue(&queue, &examined);
     }
+    tree_searches = queue.tree_searches;
+    tree_comparisons = queue.tree_comparisons;
     gc_mark_queue_destroy(&queue);
     if (status != GC_STATUS_OK) {
         gc_clear_marks();
         gc_state.status = status;
         return;
+    }
+    if (!QueryPerformanceCounter(&mark_end)
+        || mark_end.QuadPart < mark_start.QuadPart) {
+        mark_end = mark_start;
     }
 
     before_count = gc_state.allocation_count;
@@ -606,6 +653,10 @@ void gc_collect(void)
         gc_state.status = GC_STATUS_INTERNAL_ERROR;
         return;
     }
+    if (!QueryPerformanceCounter(&sweep_end)
+        || sweep_end.QuadPart < mark_end.QuadPart) {
+        sweep_end = mark_end;
+    }
     status = gc_rebuild_old_pages();
     if (status != GC_STATUS_OK) {
         gc_state.status = status;
@@ -620,25 +671,37 @@ void gc_collect(void)
         return;
     }
 
+    pause_ticks = (uint64_t)(end.QuadPart - start.QuadPart);
+    mark_ticks = (uint64_t)(mark_end.QuadPart - mark_start.QuadPart);
+    sweep_ticks = (uint64_t)(sweep_end.QuadPart - mark_end.QuadPart);
     ++gc_state.stats.collection_count;
     if (collect_major) {
         ++gc_state.stats.major_collection_count;
         gc_state.minor_collections_since_major = 0;
-        gc_state.stats.last_major_pause_ticks =
-            (uint64_t)(end.QuadPart - start.QuadPart);
+        gc_state.stats.last_major_pause_ticks = pause_ticks;
     } else {
         ++gc_state.stats.minor_collection_count;
         ++gc_state.minor_collections_since_major;
-        gc_state.stats.last_minor_pause_ticks =
-            (uint64_t)(end.QuadPart - start.QuadPart);
+        gc_state.stats.last_minor_pause_ticks = pause_ticks;
     }
+    gc_add_size_metric(&gc_state.stats.tree_searches, tree_searches);
+    gc_add_size_metric(&gc_state.stats.tree_comparisons,
+                       tree_comparisons);
+    gc_add_tick_metric(&gc_state.stats.pause_ticks, pause_ticks);
+    gc_add_tick_metric(&gc_state.stats.mark_ticks, mark_ticks);
+    gc_add_tick_metric(&gc_state.stats.sweep_ticks, sweep_ticks);
     gc_state.stats.last_objects_examined = examined;
     gc_state.stats.last_objects_collected =
         before_count - gc_state.allocation_count;
-    gc_state.stats.last_pause_ticks =
-        (uint64_t)(end.QuadPart - start.QuadPart);
+    gc_state.stats.last_tree_searches = tree_searches;
+    gc_state.stats.last_tree_comparisons = tree_comparisons;
+    gc_state.stats.last_dirty_pages = dirty_pages;
+    gc_state.stats.last_pause_ticks = pause_ticks;
+    gc_state.stats.last_mark_ticks = mark_ticks;
+    gc_state.stats.last_sweep_ticks = sweep_ticks;
     gc_state.stats.performance_frequency =
         (uint64_t)frequency.QuadPart;
+    gc_update_resident_memory();
     gc_state.status = GC_STATUS_OK;
 }
 

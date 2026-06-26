@@ -584,6 +584,13 @@ static int test_mark_sweep_collection(void)
     TEST_ASSERT(stats.bytes_live == (size_t)96);
     TEST_ASSERT(stats.bytes_collected == (size_t)0);
     TEST_ASSERT(stats.performance_frequency > (uint64_t)0);
+    TEST_ASSERT(stats.pause_ticks == stats.last_pause_ticks);
+    TEST_ASSERT(stats.last_mark_ticks <= stats.last_pause_ticks);
+    TEST_ASSERT(stats.last_sweep_ticks <= stats.last_pause_ticks);
+    TEST_ASSERT(stats.tree_searches >= stats.last_tree_searches);
+    TEST_ASSERT(stats.tree_comparisons >= stats.last_tree_comparisons);
+    TEST_ASSERT(stats.last_tree_searches > (size_t)0);
+    TEST_ASSERT(stats.max_resident_bytes > (size_t)0);
 
     TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_remove_root(&root));
     gc_collect();

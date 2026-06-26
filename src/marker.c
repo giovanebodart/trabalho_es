@@ -44,6 +44,31 @@ void gc_mark_queue_init(GCMarkQueue *queue)
     queue->head = 0;
     queue->length = 0;
     queue->capacity = 0;
+    queue->tree_searches = 0;
+    queue->tree_comparisons = 0;
+}
+
+static void gc_mark_add_metric(size_t *total, size_t value)
+{
+    if (total == NULL) {
+        return;
+    }
+    *total = *total > SIZE_MAX - value ? SIZE_MAX : *total + value;
+}
+
+IntervalNode *gc_mark_find_candidate(IntervalNode *tree,
+                                     uintptr_t candidate,
+                                     GCMarkQueue *queue)
+{
+    size_t comparisons = 0;
+    IntervalNode *interval = interval_tree_find_counted(
+        tree, candidate, &comparisons);
+
+    if (queue != NULL) {
+        gc_mark_add_metric(&queue->tree_searches, (size_t)1);
+        gc_mark_add_metric(&queue->tree_comparisons, comparisons);
+    }
+    return interval;
 }
 
 GCMarkQueueResult gc_mark_queue_push(GCMarkQueue *queue,
@@ -114,7 +139,7 @@ GCMarkScanResult gc_mark_scan_object(const GCAllocation *source,
         uintptr_t candidate;
 
         memcpy(&candidate, bytes + offset, sizeof candidate);
-        interval = interval_tree_find(tree, candidate);
+        interval = gc_mark_find_candidate(tree, candidate, queue);
         if (interval == NULL) {
             continue;
         }

@@ -113,7 +113,8 @@ para uma sequencia automatica ou `-BuildOnly` para somente compilar em debug.
 
 ## Estado atual
 
-O repositório está na Fase 6, com a coleta menor inicial. O alocador usa
+O repositório está no início da Fase 8, após concluir a validação dinâmica da
+Fase 7 e iniciar a instrumentação de métricas do Commit 37. O alocador usa
 classes de tamanho para objetos pequenos, com blocos de 32, 64, 128, 256, 512 e
 1024 bytes distribuídos a partir de arenas de 64 KiB. Objetos maiores recebem
 mapeamentos dedicados por `VirtualAlloc()`.
@@ -126,14 +127,11 @@ ocupadas para reuso e libera arenas inteiramente vazias quando o último objeto
 vivo daquela arena é coletado.
 
 As alocações novas entram na geração jovem. `gc_collect()` executa uma coleta
-menor: marca raízes explícitas, pilha, registradores e, provisoriamente, todos
-os objetos antigos como raízes conservadoras; em seguida varre apenas objetos
-jovens não marcados. Objetos jovens promovem para a geração antiga após
+menor: marca raízes explícitas, pilha, registradores e o remembered set; em
+seguida varre apenas objetos jovens não marcados. Objetos jovens promovem para
+a geração antiga após
 `GC_DEFAULT_PROMOTION_THRESHOLD` sobrevivências, cujo padrão é 2 e pode ser
-ajustado com `gc_set_promotion_threshold()`. Essa varredura preserva
-referências antiga-para-jovem de forma segura até os próximos commits
-adicionarem páginas antigas, barreira de escrita, remembered set e coleta
-maior.
+ajustado com `gc_set_promotion_threshold()`.
 
 O coletor mantém uma tabela interna de páginas antigas candidatas à proteção:
 por enquanto entram apenas objetos antigos em mapeamentos dedicados por
@@ -169,9 +167,10 @@ após a coleta e bytes recuperados em uma tabela com legenda no terminal.
 O benchmark `bench_fire_test` cria ciclos e referências cruzadas
 determinísticas, mantém raízes verificadas por canários, remove subconjuntos de
 raízes e executa coletas menores e maiores para verificar sobrevivência dos
-objetos vivos. Ambos aceitam `--csv` e emitem as colunas planejadas para os
-experimentos; métricas ainda não instrumentadas internamente, como custo
-separado de mark/sweep e RSS, são emitidas como `0`.
+objetos vivos. Ambos aceitam `--csv` e emitem colunas para algoritmo, semente,
+objetos, heap, bytes vivos, bytes coletados, pausa, marcação, sweep, buscas e
+comparações na árvore, coletas menores e maiores, promoções, páginas sujas e
+memória residente máxima amostrada pelo Windows.
 
 ## Documentação do desenvolvimento
 

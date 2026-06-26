@@ -162,3 +162,16 @@ size_t gc_old_pages_count(const GCOldPage *pages)
     }
     return count;
 }
+
+size_t gc_old_pages_dirty_count(const GCOldPage *pages)
+{
+    size_t count = 0;
+
+    while (pages != NULL) {
+        if (pages->dirty && count < SIZE_MAX) {
+            ++count;
+        }
+        pages = pages->next;
+    }
+    return count;
+}

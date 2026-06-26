@@ -61,7 +61,7 @@ static void print_legend(void)
 static void print_csv_header(void)
 {
     puts("algorithm,seed,objects,heap_bytes,live_bytes,collected_bytes,"
-         "mark_ticks,sweep_ticks,tree_searches,tree_comparisons,"
+         "pause_ticks,mark_ticks,sweep_ticks,tree_searches,tree_comparisons,"
          "minor_collections,major_collections,promoted_objects,dirty_pages,"
          "max_rss_bytes");
 }
@@ -69,10 +69,17 @@ static void print_csv_header(void)
 static void print_csv_row(size_t count, const GCStats *peak,
                           const GCStats *after)
 {
-    printf("generational,0,%zu,%zu,%zu,%zu,0,0,0,0,%zu,%zu,0,0,0\n",
+    printf("generational,0,%zu,%zu,%zu,%zu,%llu,%llu,%llu,%zu,%zu,"
+           "%zu,%zu,%zu,%zu,%zu\n",
            count, peak->bytes_reserved, after->bytes_live,
-           after->bytes_collected, after->minor_collection_count,
-           after->major_collection_count);
+           after->bytes_collected,
+           (unsigned long long)after->pause_ticks,
+           (unsigned long long)after->mark_ticks,
+           (unsigned long long)after->sweep_ticks,
+           after->tree_searches, after->tree_comparisons,
+           after->minor_collection_count, after->major_collection_count,
+           after->promoted_objects, after->last_dirty_pages,
+           after->max_resident_bytes);
 }
 
 static bool parse_args(int argc, char **argv, size_t *limit, bool *csv)

@@ -21,7 +21,7 @@ typedef struct FireNode {
 static void print_csv_header(void)
 {
     puts("algorithm,seed,objects,heap_bytes,live_bytes,collected_bytes,"
-         "mark_ticks,sweep_ticks,tree_searches,tree_comparisons,"
+         "pause_ticks,mark_ticks,sweep_ticks,tree_searches,tree_comparisons,"
          "minor_collections,major_collections,promoted_objects,dirty_pages,"
          "max_rss_bytes");
 }
@@ -90,6 +90,7 @@ static int run_cycle(size_t count, size_t cycle, bool csv)
     FireNode **nodes = calloc(count, sizeof *nodes);
     size_t root_count = count / (size_t)16 + (size_t)1;
     FireNode **roots = calloc(root_count, sizeof *roots);
+    GCStats peak = {0};
     GCStats stats;
     size_t index;
 
@@ -125,6 +126,11 @@ static int run_cycle(size_t count, size_t cycle, bool csv)
             free(roots);
             return EXIT_FAILURE;
         }
+    }
+    if (gc_get_stats(&peak) != GC_SUCCESS) {
+        free(nodes);
+        free(roots);
+        return EXIT_FAILURE;
     }
 
     gc_collect();
@@ -172,10 +178,17 @@ static int run_cycle(size_t count, size_t cycle, bool csv)
         return EXIT_FAILURE;
     }
     if (csv) {
-        printf("generational,%zu,%zu,%zu,%zu,%zu,0,0,0,0,%zu,%zu,0,0,0\n",
-               cycle, count, stats.bytes_reserved, stats.bytes_live,
-               stats.bytes_collected, stats.minor_collection_count,
-               stats.major_collection_count);
+        printf("generational,%zu,%zu,%zu,%zu,%zu,%llu,%llu,%llu,%zu,%zu,"
+               "%zu,%zu,%zu,%zu,%zu\n",
+               cycle, count, peak.bytes_reserved, stats.bytes_live,
+               stats.bytes_collected,
+               (unsigned long long)stats.pause_ticks,
+               (unsigned long long)stats.mark_ticks,
+               (unsigned long long)stats.sweep_ticks,
+               stats.tree_searches, stats.tree_comparisons,
+               stats.minor_collection_count, stats.major_collection_count,
+               stats.promoted_objects, stats.last_dirty_pages,
+               stats.max_resident_bytes);
     } else {
         printf("ciclo=%zu objetos=%zu vivos=%zu coletados=%zu "
                "menores=%zu maiores=%zu\n",

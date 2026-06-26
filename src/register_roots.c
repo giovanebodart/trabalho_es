@@ -15,7 +15,7 @@ static GCRegisterScanResult gc_register_roots_push(uintptr_t candidate,
                                                    GCMarkQueue *queue)
 {
     GCMarkQueueResult result;
-    IntervalNode *interval = interval_tree_find(tree, candidate);
+    IntervalNode *interval = gc_mark_find_candidate(tree, candidate, queue);
 
     if (interval == NULL) {
         return GC_REGISTER_SCAN_OK;

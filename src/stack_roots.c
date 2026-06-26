@@ -60,7 +60,7 @@ GC_NO_ASAN GCStackScanResult gc_stack_scan_region(
         uintptr_t candidate;
 
         memcpy(&candidate, (const void *)address, sizeof candidate);
-        interval = interval_tree_find(tree, candidate);
+        interval = gc_mark_find_candidate(tree, candidate, queue);
         if (interval == NULL) {
             continue;
         }

@@ -9,6 +9,8 @@ typedef struct {
     size_t head;
     size_t length;
     size_t capacity;
+    size_t tree_searches;
+    size_t tree_comparisons;
 } GCMarkQueue;
 
 typedef enum {
@@ -25,6 +27,9 @@ typedef enum {
 } GCMarkScanResult;
 
 void gc_mark_queue_init(GCMarkQueue *queue);
+IntervalNode *gc_mark_find_candidate(IntervalNode *tree,
+                                     uintptr_t candidate,
+                                     GCMarkQueue *queue);
 GCMarkQueueResult gc_mark_queue_push(GCMarkQueue *queue, GCAllocation *allocation);
 GCAllocation *gc_mark_queue_pop(GCMarkQueue *queue);
 size_t gc_mark_queue_pending(const GCMarkQueue *queue);

@@ -64,6 +64,7 @@ static GCSweepResult gc_sweep_scope(GCAllocation **allocations,
                                     GCSweepScope scope)
 {
     GCAllocation **link;
+    size_t promoted = 0;
 
     if (allocations == NULL || tree == NULL
         || allocation_count == NULL || stats == NULL
@@ -77,6 +78,7 @@ static GCSweepResult gc_sweep_scope(GCAllocation **allocations,
         return GC_SWEEP_TREE_ERROR;
     }
 
+    stats->last_promoted_objects = 0;
     link = allocations;
     while (*link != NULL) {
         GCAllocation *allocation = *link;
@@ -84,8 +86,16 @@ static GCSweepResult gc_sweep_scope(GCAllocation **allocations,
 
         if (allocation->marked || !collectable) {
             if (allocation->marked && collectable) {
+                GCGeneration before = allocation->generation;
+
                 gc_allocator_record_survival(allocation,
                                              promotion_threshold);
+                if (before == GC_GENERATION_YOUNG
+                    && allocation->generation == GC_GENERATION_OLD
+                    && stats->promoted_objects < SIZE_MAX) {
+                    ++stats->promoted_objects;
+                    ++promoted;
+                }
             }
             allocation->marked = false;
             link = &allocation->next;
@@ -119,6 +129,7 @@ static GCSweepResult gc_sweep_scope(GCAllocation **allocations,
             stats->bytes_collected += requested;
         }
     }
+    stats->last_promoted_objects = promoted;
     return GC_SWEEP_OK;
 }
 

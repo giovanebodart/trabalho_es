@@ -42,6 +42,7 @@ bool gc_old_pages_protect(GCOldPage *pages);
 bool gc_old_pages_unprotect_for_write(GCOldPage *pages,
                                       const void *address);
 size_t gc_old_pages_count(const GCOldPage *pages);
+size_t gc_old_pages_dirty_count(const GCOldPage *pages);
 void gc_old_pages_destroy(GCOldPage *pages);
 
 #endif

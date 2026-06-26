@@ -132,28 +132,29 @@ GC_HEADERS := include/gc.h include/gc_config.h include/gc_stats.h \
 		include/interval_tree.h src/allocator.h src/gc_internal.h \
 		src/marker.h src/old_pages.h src/register_roots.h src/roots.h \
 		src/stack_roots.h src/sweeper.h
+GC_LIBS := -lpsapi
 
 $(BUILD_DIR)/test_gc$(EXEEXT): tests/test_gc.c $(GC_SOURCES) $(GC_HEADERS) \
 		tests/test.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Isrc -Itests tests/test_gc.c \
-		$(GC_SOURCES) -o $@
+		$(GC_SOURCES) -o $@ $(GC_LIBS)
 
 $(SANITIZE_DIR)/test_gc$(EXEEXT): tests/test_gc.c $(GC_SOURCES) $(GC_HEADERS) \
 		tests/test.h | $(SANITIZE_DIR)
 	$(SAN_CC) $(SAN_FLAGS) -Iinclude -Isrc -Itests tests/test_gc.c \
-		$(GC_SOURCES) -o $@
+		$(GC_SOURCES) -o $@ $(GC_LIBS)
 
 $(BUILD_DIR)/example_%$(EXEEXT): examples/%.c $(GC_SOURCES) $(GC_HEADERS) \
 		| $(BUILD_DIR)
-	$(CC) $(CFLAGS) -Iinclude -Isrc $< $(GC_SOURCES) -o $@
+	$(CC) $(CFLAGS) -Iinclude -Isrc $< $(GC_SOURCES) -o $@ $(GC_LIBS)
 
 $(BUILD_DIR)/bench_%$(EXEEXT): benchmarks/%.c $(GC_SOURCES) $(GC_HEADERS) \
 		| $(BUILD_DIR)
-	$(CC) $(CFLAGS) -Iinclude -Isrc $< $(GC_SOURCES) -o $@
+	$(CC) $(CFLAGS) -Iinclude -Isrc $< $(GC_SOURCES) -o $@ $(GC_LIBS)
 
 $(SANITIZE_DIR)/example_%$(EXEEXT): examples/%.c $(GC_SOURCES) $(GC_HEADERS) \
 		| $(SANITIZE_DIR)
-	$(SAN_CC) $(SAN_FLAGS) -Iinclude -Isrc $< $(GC_SOURCES) -o $@
+	$(SAN_CC) $(SAN_FLAGS) -Iinclude -Isrc $< $(GC_SOURCES) -o $@ $(GC_LIBS)
 
 test: $(TEST_BINS) $(EXAMPLE_BINS)
 	$(BUILD_DIR)/test_assertions$(EXEEXT)
