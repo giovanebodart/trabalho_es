@@ -258,6 +258,22 @@ static int test_promotion_threshold_configuration(void)
     return EXIT_SUCCESS;
 }
 
+static int test_major_collection_interval_configuration(void)
+{
+    GCStats stats;
+
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_init());
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_set_major_collection_interval(0));
+    gc_collect();
+    TEST_ASSERT_EQ_INT(GC_STATUS_OK, gc_get_status());
+    TEST_ASSERT_EQ_INT(GC_SUCCESS, gc_get_stats(&stats));
+    TEST_ASSERT(stats.major_collection_count == (size_t)1);
+    TEST_ASSERT(stats.minor_collection_count == (size_t)0);
+    gc_shutdown();
+    TEST_ASSERT_EQ_INT(GC_STATUS_OK, gc_get_status());
+    return EXIT_SUCCESS;
+}
+
 static int test_old_page_tracking_after_promotion(void)
 {
     SYSTEM_INFO system_info;
@@ -642,6 +658,8 @@ int main(void)
     TEST_ASSERT_EQ_INT(GC_STATUS_NOT_INITIALIZED, gc_get_status());
     TEST_ASSERT_EQ_INT(GC_FAILURE, gc_set_promotion_threshold(1));
     TEST_ASSERT_EQ_INT(GC_STATUS_NOT_INITIALIZED, gc_get_status());
+    TEST_ASSERT_EQ_INT(GC_FAILURE, gc_set_major_collection_interval(0));
+    TEST_ASSERT_EQ_INT(GC_STATUS_NOT_INITIALIZED, gc_get_status());
     TEST_ASSERT_EQ_INT(GC_FAILURE, gc_add_root(NULL));
     TEST_ASSERT_EQ_INT(GC_STATUS_NOT_INITIALIZED, gc_get_status());
     TEST_ASSERT_EQ_INT(GC_FAILURE, gc_remove_root(NULL));
@@ -658,6 +676,8 @@ int main(void)
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_memory_pressure());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS,
                        test_promotion_threshold_configuration());
+    TEST_ASSERT_EQ_INT(EXIT_SUCCESS,
+                       test_major_collection_interval_configuration());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS,
                        test_old_page_tracking_after_promotion());
     TEST_ASSERT_EQ_INT(EXIT_SUCCESS, test_debug_canaries());

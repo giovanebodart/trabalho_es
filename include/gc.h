@@ -29,6 +29,7 @@ int gc_init(void);
 void *gc_malloc(size_t size);
 int gc_set_memory_limit(size_t bytes);
 int gc_set_promotion_threshold(size_t survivals);
+int gc_set_major_collection_interval(size_t minor_collections);
 int gc_get_stats(GCStats *out);
 int gc_add_root(void **root);
 int gc_remove_root(void **root);

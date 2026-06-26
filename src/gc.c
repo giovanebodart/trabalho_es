@@ -31,6 +31,7 @@ typedef struct {
     size_t page_size;
     size_t memory_limit;
     size_t promotion_threshold;
+    size_t major_collection_interval;
     size_t minor_collections_since_major;
     size_t collection_request_count;
     size_t allocation_count;
@@ -52,6 +53,7 @@ static GCState gc_state = {
     0,
     GC_DEFAULT_MEMORY_LIMIT,
     GC_DEFAULT_PROMOTION_THRESHOLD,
+    GC_DEFAULT_MAJOR_COLLECTION_INTERVAL,
     0,
     0,
     0,
@@ -143,7 +145,7 @@ static void gc_request_collection(void)
 static bool gc_should_collect_major(void)
 {
     return gc_state.minor_collections_since_major
-           >= GC_DEFAULT_MAJOR_COLLECTION_INTERVAL;
+           >= gc_state.major_collection_interval;
 }
 
 static bool gc_prepare_memory_pressure(size_t reserved,
@@ -705,6 +707,23 @@ void gc_collect(void)
     gc_state.status = GC_STATUS_OK;
 }
 
+int gc_set_major_collection_interval(size_t minor_collections)
+{
+    if (!gc_state.initialized) {
+        gc_state.status = GC_STATUS_NOT_INITIALIZED;
+        return GC_FAILURE;
+    }
+    if (!gc_is_owner_thread()) {
+        gc_state.status = GC_STATUS_WRONG_THREAD;
+        return GC_FAILURE;
+    }
+
+    gc_state.major_collection_interval = minor_collections;
+    gc_state.minor_collections_since_major = 0;
+    gc_state.status = GC_STATUS_OK;
+    return GC_SUCCESS;
+}
+
 void gc_shutdown(void)
 {
     bool canaries_valid;
@@ -733,6 +752,8 @@ void gc_shutdown(void)
     gc_state.page_size = 0;
     gc_state.memory_limit = GC_DEFAULT_MEMORY_LIMIT;
     gc_state.promotion_threshold = GC_DEFAULT_PROMOTION_THRESHOLD;
+    gc_state.major_collection_interval =
+        GC_DEFAULT_MAJOR_COLLECTION_INTERVAL;
     gc_state.minor_collections_since_major = 0;
     gc_state.collection_request_count = 0;
     gc_state.allocation_count = 0;

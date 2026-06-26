@@ -808,3 +808,16 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: build estrito, suite normal, ASan/UBSan, stress, benchmark completo e CSV do benchmark da arvore passaram; o benchmark mostrou alturas 12, 16 e 20 para 10^3, 10^4 e 10^5 nos, com medias de comparacoes de busca proximas a `ceil(log2(n))`.
 - Erros da IA ou sugestoes rejeitadas: a primeira compilacao falhou por usar sufixo `u` dentro de `UINT32_C(...)`; foi corrigido. Depois, uma validacao foi paralelizada com a execucao do mesmo `bench_tree.exe`, causando `Permission denied` no link; a validacao foi repetida sequencialmente.
 - Pendencias e proximo passo: revisar o diff final e criar o commit `bench(tree): mede operacoes da arvore` somente apos autorizacao; depois iniciar o Commit 39 para comparar mark-sweep puro e coletor geracional.
+
+## 2026-06-25 23:28 - Comparacao dos coletores
+
+- Prompt/objetivo: prosseguir para o Commit 39 e comparar mark-sweep puro com o coletor geracional.
+- Fase do PLAN.md: Fase 8 - Benchmarks e graficos; Commit 39.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, `Makefile`, API publica do coletor, politica de coleta maior, testes do coletor e benchmarks existentes.
+- Alteracoes realizadas: criado `benchmarks/compare_collectors.c`; o `Makefile` passou a compilar e executar `bench_compare_collectors.exe`; adicionada `gc_set_major_collection_interval()` para permitir modo mark-sweep puro no benchmark; `tests/test_gc.c` valida a configuracao; README documenta o CSV do novo comparador.
+- Decisoes e justificativas: intervalo de coleta maior igual a zero força uma coleta maior em toda chamada de `gc_collect()`, dando um modo mark-sweep puro sem duplicar o coletor; o benchmark executa aquecimento e tres repeticoes da mesma carga, calculando media, mediana e dispersao de pausa e tempo total.
+- Riscos ou erros procurados: diferenca de carga entre algoritmos, falso positivo conservador mantendo lixo, estatisticas de coleta menor/maior inconsistentes, mediana calculada sobre dados mutaveis, regressao da politica geracional padrao e estouro do limite de linhas do commit.
+- Testes executados: `mingw32-make clean all test sanitize stress benchmark`, `.\build\bench_compare_collectors.exe 1000`, `.\build\bench_compare_collectors.exe 1000 --csv`, `git diff --check` e `Get-Command drmemory`.
+- Resultados: build estrito, testes, exemplos, ASan/UBSan, stress, benchmark completo, tabela e CSV do comparador passaram sem warnings ou falhas; `git diff --check` nao reportou problemas; Dr. Memory nao foi encontrado no `PATH`.
+- Erros da IA ou sugestoes rejeitadas: o teste inicial da nova opcao repetia a validacao de thread dona ja coberta em outros testes e foi removido para manter o commit dentro do limite definido no `SKILL.md`.
+- Pendencias e proximo passo: revisar o diff final e criar o commit `bench(gc): compara coletores`; depois seguir para o Commit 40, gerando graficos reproduziveis a partir dos dados dos benchmarks.

@@ -74,6 +74,7 @@ mingw32-make benchmark SCALE_BENCHMARK_MAX=1000000
 .\build\bench_scale_allocations.exe 100000 --csv > data\scale.csv
 .\build\bench_fire_test.exe 50000 --csv > data\fire.csv
 .\build\bench_tree.exe 100000 --csv > data\tree.csv
+.\build\bench_compare_collectors.exe 50000 --csv > data\collectors.csv
 ```
 
 O modo `--full` dos benchmarks também percorre `10^7` objetos, portanto deve
@@ -115,8 +116,8 @@ para uma sequencia automatica ou `-BuildOnly` para somente compilar em debug.
 
 ## Estado atual
 
-O repositório está no início da Fase 8, após concluir a validação dinâmica da
-Fase 7 e iniciar a instrumentação de métricas do Commit 37. O alocador usa
+O repositório está na Fase 8, Commit 39, comparando mark-sweep puro e coletor
+geracional sobre a mesma carga sintética. O alocador usa
 classes de tamanho para objetos pequenos, com blocos de 32, 64, 128, 256, 512 e
 1024 bytes distribuídos a partir de arenas de 64 KiB. Objetos maiores recebem
 mapeamentos dedicados por `VirtualAlloc()`.
@@ -179,6 +180,10 @@ intervalos com tamanhos crescentes, três repetições e sementes fixas. Ele
 registra altura observada, `ceil(log2(n))`, tempo por operação agregada em
 ticks e média de comparações nas buscas para apoiar a comparação experimental
 com o comportamento `O(log n)`.
+
+O benchmark `bench_compare_collectors` executa aquecimento e três repetições da
+mesma carga em mark-sweep puro e no coletor geracional, emitindo média, mediana
+e dispersão das pausas e do tempo total em tabela ou CSV.
 
 ## Documentação do desenvolvimento
 
