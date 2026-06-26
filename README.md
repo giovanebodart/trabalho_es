@@ -128,6 +128,16 @@ retencoes conservadoras e metricas da pausa com
 `.\scripts\run_gc_visualizer.ps1`; dados e remocoes sao aleatorios. Use `-Demo`
 para uma sequencia automatica ou `-BuildOnly` para somente compilar em debug.
 
+O terminal tambem mostra uma linha do tempo dos eventos recentes do GC:
+alocacoes, mudancas de raiz, mudancas de referencias, descartes e coletas. A
+tela separa objetos em `[R]` raiz direta, `[V]` vivo por alcance e `[L]` lixo
+esperado para a proxima coleta.
+
+O Windows Performance Analyzer foi localizado no ambiente em
+`C:\Program Files (x86)\Windows Kits\10\Windows Performance Toolkit\wpa.exe`;
+ele pode complementar a observacao de CPU e memoria do processo, mas nao
+substitui os testes, invariantes e sanitizadores do projeto.
+
 ## Estado atual
 
 O repositório está na Fase 9, Commit 41, consolidando a documentação técnica

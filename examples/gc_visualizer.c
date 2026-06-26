@@ -3,12 +3,18 @@
 #include <conio.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <windows.h>
-enum { OBJECT_COUNT = 10, ROOT_COUNT = 2, EDGE_COUNT = 2 };
+enum {
+    OBJECT_COUNT = 10,
+    ROOT_COUNT = 2,
+    EDGE_COUNT = 2,
+    EVENT_COUNT = 9
+};
 #if defined(__GNUC__)
 #define GC_VIS_NOINLINE __attribute__((noinline))
 #else
@@ -19,10 +25,19 @@ typedef struct Object {
 } Object;
 
 typedef struct {
+    size_t step;
+    char phase[12];
+    char detail[96];
+} Event;
+
+typedef struct {
     Object *object[OBJECT_COUNT];
     void *root[ROOT_COUNT];
     bool active[OBJECT_COUNT];
+    Event events[EVENT_COUNT];
     size_t retained_garbage;
+    size_t event_count;
+    size_t step;
     bool valid;
 } Demo;
 typedef void (*Action)(Demo *, char *, size_t);
@@ -52,6 +67,23 @@ static size_t choose_object(const Demo *demo, bool active) {
         }
     }
     return OBJECT_COUNT;
+}
+static void record_event(Demo *demo, const char *phase,
+                         const char *format, ...) {
+    Event *event;
+    va_list args;
+    if (demo->event_count < EVENT_COUNT) {
+        event = &demo->events[demo->event_count++];
+    } else {
+        memmove(&demo->events[0], &demo->events[1],
+                sizeof demo->events[0] * (EVENT_COUNT - 1));
+        event = &demo->events[EVENT_COUNT - 1];
+    }
+    event->step = ++demo->step;
+    (void)snprintf(event->phase, sizeof event->phase, "%s", phase);
+    va_start(args, format);
+    (void)vsnprintf(event->detail, sizeof event->detail, format, args);
+    va_end(args);
 }
 static size_t find_reachable(const Demo *demo, bool reachable[OBJECT_COUNT]) {
     size_t queue[OBJECT_COUNT];
@@ -87,6 +119,19 @@ static void print_target(const Demo *demo, const void *pointer) {
         printf("O%02zu", target);
     }
 }
+static void render_events(const Demo *demo) {
+    size_t index;
+    puts("Eventos recentes do GC:");
+    if (demo->event_count == 0) {
+        puts("  nenhum evento registrado ainda");
+        return;
+    }
+    for (index = 0; index < demo->event_count; ++index) {
+        const Event *event = &demo->events[index];
+        printf("  #%02zu %-7s %s\n",
+               event->step, event->phase, event->detail);
+    }
+}
 static void render(const Demo *demo, const char *message) {
     bool reachable[OBJECT_COUNT];
     GCStats stats = {0};
@@ -100,24 +145,30 @@ static void render(const Demo *demo, const char *message) {
                    / (double)stats.performance_frequency;
     }
     puts("=== Visualizador do garbage collector mark-sweep ===");
-    puts("Legenda: [R] raiz  [V] alcancavel  [L] lixo aguardando coleta\n");
+    puts("Como ler:");
+    puts("  [R] raiz direta: esta em uma variavel registrada no GC");
+    puts("  [V] vivo: alcancavel por raiz ou por outro objeto vivo");
+    puts("  [L] lixo: inacessivel e deve desaparecer apos uma coleta\n");
     fputs("Raizes: ", stdout);
     for (index = 0; index < ROOT_COUNT; ++index) {
         printf("R%zu->", index);
         print_target(demo, demo->root[index]);
         fputs(index + 1 == ROOT_COUNT ? "\n\n" : "  ", stdout);
     }
+    puts("Objetos gerenciados:");
+    puts("ID    estado   edge0  edge1");
     for (index = 0; index < OBJECT_COUNT; ++index) {
+        const char *state;
         if (!demo->active[index]) {
             continue;
         }
         ++active;
-        printf("O%02zu [%c] -> ", index,
-               (demo->root[0] == demo->object[index]
-                || demo->root[1] == demo->object[index]) ? 'R'
-               : (reachable[index] ? 'V' : 'L'));
+        state = (demo->root[0] == demo->object[index]
+                 || demo->root[1] == demo->object[index]) ? "[R]"
+                : (reachable[index] ? "[V]" : "[L]");
+        printf("O%02zu  %-7s ", index, state);
         print_target(demo, demo->object[index]->edge[0]);
-        fputs(", ", stdout);
+        fputs("  ", stdout);
         print_target(demo, demo->object[index]->edge[1]);
         putchar('\n');
     }
@@ -128,6 +179,8 @@ static void render(const Demo *demo, const char *message) {
            stats.last_objects_collected, pause_us);
     printf("Bytes vivos=%zu | coletados=%zu | reservados=%zu\n",
            stats.bytes_live, stats.bytes_collected, stats.bytes_reserved);
+    putchar('\n');
+    render_events(demo);
     printf("\nUltima operacao: %s\n\n", message);
     puts("[1] Alocar e integrar objeto aleatorio");
     puts("[2] Alterar raiz ou referencia aleatoria");
@@ -145,6 +198,7 @@ static void grow_random(Demo *demo, char *message, size_t size) {
     Object *object;
     if (slot == OBJECT_COUNT) {
         (void)snprintf(message, size, "limite de objetos atingido");
+        record_event(demo, "alloc", "falhou: todos os slots estao ativos");
         return;
     }
     object = gc_malloc(sizeof *object);
@@ -152,6 +206,8 @@ static void grow_random(Demo *demo, char *message, size_t size) {
         demo->valid = false;
         (void)snprintf(message, size, "gc_malloc falhou: status %d",
                        (int)gc_get_status());
+        record_event(demo, "erro", "gc_malloc falhou com status %d",
+                     (int)gc_get_status());
         return;
     }
     object->edge[0] = NULL;
@@ -159,12 +215,18 @@ static void grow_random(Demo *demo, char *message, size_t size) {
     demo->object[slot] = object;
     demo->active[slot] = true;
     if (source != OBJECT_COUNT && rand() % 2 == 0) {
-        demo->object[source]->edge[(size_t)rand() % EDGE_COUNT] = object;
+        size_t edge = (size_t)rand() % EDGE_COUNT;
+        demo->object[source]->edge[edge] = object;
+        record_event(demo, "link", "O%02zu.edge%zu -> O%02zu",
+                     source, edge, slot);
     }
     if (rand() % 3 == 0) {
-        demo->root[(size_t)rand() % ROOT_COUNT] = object;
+        size_t root = (size_t)rand() % ROOT_COUNT;
+        demo->root[root] = object;
+        record_event(demo, "root", "R%zu -> O%02zu", root, slot);
     }
     (void)snprintf(message, size, "O%02zu alocado e integrado", slot);
+    record_event(demo, "alloc", "O%02zu criado por gc_malloc()", slot);
 }
 static void mutate_random(Demo *demo, char *message, size_t size) {
     size_t source = choose_object(demo, true);
@@ -177,11 +239,14 @@ static void mutate_random(Demo *demo, char *message, size_t size) {
         size_t root = (size_t)rand() % ROOT_COUNT;
         demo->root[root] = demo->object[target];
         (void)snprintf(message, size, "R%zu aponta para O%02zu", root, target);
+        record_event(demo, "root", "R%zu -> O%02zu", root, target);
     } else {
         size_t edge = (size_t)rand() % EDGE_COUNT;
         demo->object[source]->edge[edge] = demo->object[target];
         (void)snprintf(message, size, "O%02zu aponta para O%02zu",
                        source, target);
+        record_event(demo, "link", "O%02zu.edge%zu -> O%02zu",
+                     source, edge, target);
     }
 }
 static void discard_random(Demo *demo, char *message, size_t size) {
@@ -193,6 +258,7 @@ static void discard_random(Demo *demo, char *message, size_t size) {
         if (item < ROOT_COUNT && demo->root[item] != NULL) {
             demo->root[item] = NULL;
             (void)snprintf(message, size, "R%zu foi descartada", item);
+            record_event(demo, "drop", "R%zu -> --", item);
             return;
         }
         if (item >= ROOT_COUNT) {
@@ -204,11 +270,14 @@ static void discard_random(Demo *demo, char *message, size_t size) {
                 demo->object[object]->edge[edge] = NULL;
                 (void)snprintf(message, size, "aresta %zu de O%02zu descartada",
                                edge, object);
+                record_event(demo, "drop", "O%02zu.edge%zu -> --",
+                             object, edge);
                 return;
             }
         }
     }
     (void)snprintf(message, size, "nenhuma referencia para descartar");
+    record_event(demo, "drop", "nenhuma referencia disponivel");
 }
 static void collect_now(Demo *demo, char *message, size_t size) {
     bool reachable[OBJECT_COUNT];
@@ -224,6 +293,8 @@ static void collect_now(Demo *demo, char *message, size_t size) {
         demo->valid = false;
         (void)snprintf(message, size, "coleta falhou: status %d",
                        (int)gc_get_status());
+        record_event(demo, "erro", "gc_collect falhou com status %d",
+                     (int)gc_get_status());
         return;
     }
     collectible = demo->retained_garbage;
@@ -243,6 +314,9 @@ static void collect_now(Demo *demo, char *message, size_t size) {
     (void)snprintf(message, size, "mark>=%zu, sweep=%zu, retidos=%zu%s",
                    marked, collected, demo->retained_garbage,
                    demo->valid ? "" : " (DIVERGENCIA)");
+    record_event(demo, demo->valid ? "collect" : "erro",
+                 "marcou >=%zu, liberou %zu, retidos %zu",
+                 marked, collected, demo->retained_garbage);
 }
 static bool reset_demo(Demo *demo, char *message, size_t size) {
     size_t index;
@@ -259,6 +333,8 @@ static bool reset_demo(Demo *demo, char *message, size_t size) {
             return false;
         }
     }
+    record_event(demo, "reset", "GC reiniciado e %d raizes registradas",
+                 ROOT_COUNT);
     for (index = 0; index < (size_t)7; ++index) {
         grow_random(demo, message, size);
     }
@@ -266,6 +342,7 @@ static bool reset_demo(Demo *demo, char *message, size_t size) {
         mutate_random(demo, message, size);
     }
     (void)snprintf(message, size, "novo grafo aleatorio criado");
+    record_event(demo, "reset", "grafo aleatorio pronto para explorar");
     return demo->valid;
 }
 static bool run_demo(Demo *demo) {

@@ -925,3 +925,107 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: diff dentro dos limites; `git diff --check` sem erros, apenas avisos esperados de LF para CRLF no Windows.
 - Erros da IA ou sugestoes rejeitadas: nenhum identificado.
 - Pendencias e proximo passo: criar o commit `release: prepara entrega final`, enviar `main` para `origin` e criar/enviar a tag final `v1.0.0`.
+
+## 2026-06-26 04:13 - Verificacao local do Dr. Memory
+
+- Prompt/objetivo: verificar se o Dr. Memory instalado pelo usuario esta funcionando no ambiente local.
+- Fase do PLAN.md: pos-entrega final; pedido extra do desenvolvedor relacionado a validacao dinamica de memoria.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `Makefile`, estado Git, historico recente e executaveis em `build/`.
+- Alteracoes realizadas: registrada esta verificacao no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: testar primeiro a disponibilidade do `drmemory.exe`, depois uma execucao real sobre `build/test_assertions.exe`; a disponibilidade por `-version` so prova instalacao, enquanto a instrumentacao prova uso efetivo.
+- Riscos ou erros procurados: confundir ferramenta instalada com ferramenta funcional, atribuir ao projeto uma falha que ocorre antes da execucao do binario, ou registrar Dr. Memory como validacao aprovada sem `results.txt`.
+- Testes executados: `Get-Command drmemory.exe`, `drmemory.exe -version`, `build/test_assertions.exe`, `drmemory.exe -batch -brief -logdir build\\drmemory -- build\\test_assertions.exe`, repeticao fora do sandbox, teste com `bin64\\drmemory.exe`, teste com `C:\\Windows\\System32\\cmd.exe`, teste com `-ignore_kernel` e teste diagnostico com `-debug -dr_debug`.
+- Resultados: Dr. Memory 2.6.0 esta instalado em `C:\\Program Files (x86)\\Dr. Memory\\bin\\drmemory.exe` e responde a `-version`; o binario do projeto executa normalmente sem Dr. Memory; porem a instrumentacao falha antes de iniciar o alvo com `Unable to load client library: dbghelp.dll: library initializer failed`; o modo debug informa execucao em Windows mais novo que a build suportada pelo Dr. Memory.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: tratar Dr. Memory como instalado, mas ainda nao funcional neste ambiente; para usa-lo em validacoes futuras, sera necessario ajustar compatibilidade/ambiente ou usar uma versao/build do Dr. Memory compativel antes de registrar resultados como aprovados.
+
+## 2026-06-26 04:20 - Alternativas ao Dr. Memory no ambiente local
+
+- Prompt/objetivo: instalar, quando necessario, e verificar alternativas proximas ao Dr. Memory.
+- Fase do PLAN.md: pos-entrega final; pedido extra do desenvolvedor relacionado a validacao dinamica de memoria.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `Makefile`, estado Git, historico recente, toolchain MSYS2/Clang, Chocolatey, Application Verifier e Windows Kits instalados.
+- Alteracoes realizadas: registrada esta verificacao no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: priorizar ASan/UBSan e Microsoft Application Verifier porque funcionam em Windows nativo e cobrem erros de heap/memoria; tentar instalar Debugging Tools/GFlags para PageHeap, mas sem remover locks ou forcar alteracoes administrativas fora do escopo seguro.
+- Riscos ou erros procurados: confundir analisador estatico com substituto dinamico, deixar Application Verifier habilitado permanentemente, registrar `gflags.exe` como disponivel sem estar instalado, ou tratar instalacao falha como validacao aprovada.
+- Testes executados: `mingw32-make sanitize`, `appverif.exe /?`, `appverif.exe -enable Heaps Handles Memory Leak -for test_gc.exe`, execucao de `build\\test_gc.exe`, repeticao com `Heaps.Full=true`, exportacao de logs para `build\\appverifier`, `appverif.exe -disable * -for test_gc.exe`, `appverif.exe -query * -for test_gc.exe`, busca por `gflags.exe` e tentativa de `choco install windows-sdk-10-version-2004-windbg -y`.
+- Resultados: ASan/UBSan passou em todos os testes e exemplos do alvo `sanitize`; Application Verifier 10.0.26100 esta instalado, executou `test_gc.exe` com checagens de heap/handles/memoria/leak e com `Heaps.Full=true`, ambos com `test_gc: ok` e sem stops registrados; `gflags.exe` nao esta instalado; a instalacao do pacote de Debugging Tools/GFlags falhou por falta de permissao administrativa/lock em `C:\\ProgramData\\chocolatey`.
+- Erros da IA ou sugestoes rejeitadas: a primeira exportacao de log do Application Verifier com caminho relativo retornou sucesso, mas nao criou arquivo; foi repetida com caminho absoluto e funcionou.
+- Pendencias e proximo passo: usar ASan/UBSan e Application Verifier como alternativas funcionais ao Dr. Memory neste ambiente; para PageHeap via GFlags, instalar Debugging Tools em um PowerShell administrador ou corrigir o lock/permissao do Chocolatey fora desta sessao.
+
+## 2026-06-26 11:00 - Ferramentas visuais para validar o coletor
+
+- Prompt/objetivo: responder se existe ferramenta mais visual para averiguar com seguranca se o coletor funciona como esperado.
+- Fase do PLAN.md: pos-entrega final; explicacao extra sobre validacao e observabilidade.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `README.md`, `docs/TECHNICAL.md`, `docs/REPORT.md`, `examples/gc_visualizer.c`, `scripts/run_gc_visualizer.ps1`, `scripts/generate_plots.py` e graficos em `plots/`.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: recomendar combinacao de visualizador proprio, graficos, invariantes, sanitizadores e ferramentas Windows; nenhuma ferramenta visual externa conhece sozinha a semantica interna de marcacao, sweep, ponteiros interiores e geracoes do coletor.
+- Riscos ou erros procurados: sugerir ferramenta visual como prova de correcao, ignorar falsos positivos conservadores, esquecer que ferramentas externas veem o processo mas nao a intencao logica do GC, ou recomendar ferramenta incompativel com Windows nativo.
+- Testes executados: revisao documental, busca nos arquivos do projeto e consulta a documentacao oficial de ferramentas Microsoft/Graphviz; nenhum teste de codigo foi necessario.
+- Resultados: explicacao registrada; a recomendacao principal e evoluir/usar o visualizador proprio do coletor como observabilidade logica e manter ASan/UBSan, Application Verifier/PageHeap quando disponivel e benchmarks/graficos como validacao complementar.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: se o usuario quiser, implementar uma visualizacao mais rica baseada em eventos do GC, exportando timeline/CSV/DOT/SVG sem substituir os testes automatizados.
+
+## 2026-06-26 11:29 - Visualizacao Graphviz do coletor
+
+- Prompt/objetivo: implementar uma visualizacao dinamica do coletor em uso usando Graphviz e, se possivel, instalar o Windows Performance Analyzer.
+- Fase do PLAN.md: pos-entrega final; pedido extra do desenvolvedor para observabilidade visual.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, `examples/gc_visualizer.c`, `scripts/run_gc_visualizer.ps1`, `include/gc.h`, `include/gc_stats.h`, `src/gc_internal.h` e ferramentas locais `dot.exe`, `wpa.exe`, Chocolatey e MSYS2/pacman.
+- Alteracoes realizadas: `examples/gc_visualizer.c` ganhou modo `--graphviz <diretorio>`; criado `scripts/run_gc_graphviz.ps1`; README documenta a geracao de frames DOT/SVG e o caminho do WPA; Graphviz foi instalado via MSYS2/pacman.
+- Decisoes e justificativas: reaproveitar o visualizador existente para nao criar outra simulacao divergente; gerar DOT sempre e SVG quando `dot.exe` existir; usar MSYS2 para instalar Graphviz porque Chocolatey falhou por permissao/lock; nao instalar WPA porque ele ja estava presente.
+- Riscos ou erros procurados: visualizacao divergente da logica do coletor, frames sem estado de raiz/lixo/alcancavel, falha silenciosa quando Graphviz nao existe, geracao de artefatos rastreados indevidamente e instalacao administrativa forçada.
+- Testes executados: `choco info graphviz`, tentativa de `choco install graphviz -y`, `pacman -Ss graphviz`, `pacman -S --needed --noconfirm mingw-w64-x86_64-graphviz`, `dot.exe -V`, `.\scripts\run_gc_graphviz.ps1`, `mingw32-make clean all test`, nova execucao de `.\scripts\run_gc_graphviz.ps1`, conferencia dos frames em `build\gc_graphviz` e `mingw32-make sanitize`.
+- Resultados: WPA localizado em `C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance Toolkit\\wpa.exe`; Chocolatey nao instalou Graphviz por falta de permissao/lock em `C:\\ProgramData\\chocolatey`; MSYS2 instalou Graphviz 14.1.3 com sucesso; o script gerou 14 frames DOT, 14 SVGs e `index.html` com controles de animacao; build/testes e sanitizers passaram.
+- Erros da IA ou sugestoes rejeitadas: a primeira tentativa via Chocolatey foi rejeitada pelo ambiente por falta de permissao administrativa/lock, entao foi adotado MSYS2/pacman como alternativa segura.
+- Pendencias e proximo passo: se desejado, commitar as alteracoes; os SVGs/DOTs gerados ficam em `build/` e continuam ignorados pelo Git.
+
+## 2026-06-26 11:44 - Commit da visualizacao Graphviz autorizado
+
+- Prompt/objetivo: criar o commit das alteracoes de visualizacao dinamica do coletor.
+- Fase do PLAN.md: pos-entrega final; commit de pedido extra do desenvolvedor.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, estado Git, historico recente, diff e arquivos do visualizador Graphviz.
+- Alteracoes realizadas: registrada a autorizacao de commit no diario; nenhuma alteracao de codigo adicional foi feita.
+- Decisoes e justificativas: usar um commit unico porque o escopo e coeso: visualizador Graphviz, script de execucao, documentacao e rastreabilidade.
+- Riscos ou erros procurados: arquivos gerados de `build/` no stage, script novo fora do escopo, diff acima do limite, whitespace final e ausencia de validacao antes do commit.
+- Testes executados: revisao de `git status`, `git diff --stat`, `git diff --numstat` e validacoes ja realizadas no pedido anterior.
+- Resultados: alteracoes dentro dos limites do plano; artefatos gerados permanecem ignorados.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: criar o commit e enviar `main` para `origin`.
+
+## 2026-06-26 11:50 - Commit Graphviz suspenso
+
+- Prompt/objetivo: interromper a criacao do commit porque a visualizacao Graphviz foi considerada confusa e desnecessaria para entender o GC.
+- Fase do PLAN.md: pos-entrega final; revisao de pedido extra do desenvolvedor.
+- Arquivos examinados: estado Git e arquivos preparados para o commit da visualizacao Graphviz.
+- Alteracoes realizadas: os arquivos foram removidos do stage; registrada a decisao no diario; nenhum commit foi criado.
+- Decisoes e justificativas: suspender o commit para preservar a clareza do projeto e evitar adicionar uma ferramenta visual que nao melhora a explicacao do coletor.
+- Riscos ou erros procurados: commit acidental, manter no stage uma alteracao rejeitada, misturar decisao de produto com implementacao e deixar artefatos gerados serem rastreados.
+- Testes executados: `git restore --staged` nos arquivos preparados e revisao de estado Git.
+- Resultados: commit nao criado; alteracoes Graphviz permanecem apenas como mudancas locais ate decisao de remover ou simplificar.
+- Erros da IA ou sugestoes rejeitadas: a proposta de visualizacao Graphviz foi rejeitada por ficar confusa para o entendimento do GC.
+- Pendencias e proximo passo: decidir se as alteracoes Graphviz devem ser removidas integralmente ou substituidas por uma visualizacao mais simples no terminal.
+
+## 2026-06-26 11:59 - Visualizador de terminal mais didatico
+
+- Prompt/objetivo: remover a camada Graphviz e melhorar a visualizacao do GC no terminal com uma linha do tempo de eventos.
+- Fase do PLAN.md: pos-entrega final; pedido extra do desenvolvedor para observabilidade didatica.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `README.md`, `examples/gc_visualizer.c`, `scripts/run_gc_visualizer.ps1`, estado Git e diff local.
+- Alteracoes realizadas: removida a camada `--graphviz` do visualizador; removido o script `scripts/run_gc_graphviz.ps1`; README deixou de recomendar Graphviz e passou a explicar a timeline do terminal; `examples/gc_visualizer.c` ganhou registro de eventos recentes para `alloc`, `root`, `link`, `drop`, `collect`, `reset` e `erro`.
+- Decisoes e justificativas: concentrar a visualizacao no terminal porque ela e mais direta para compreender o coletor; a timeline textual explica a relacao entre operacoes, raizes, alcance, lixo esperado e resultado do sweep sem exigir uma ferramenta externa.
+- Riscos ou erros procurados: deixar referencias Graphviz ativas no codigo ou README, registrar eventos divergentes do estado real, quebrar o modo interativo, quebrar `--demo`, invalidar raizes conservadoras ou introduzir warnings por `stdarg.h`.
+- Testes executados: `.\scripts\run_gc_visualizer.ps1 -Demo`, `mingw32-make clean all test`, `mingw32-make sanitize`, busca por referencias Graphviz e revisao do diff.
+- Resultados: visualizador compila sem warnings e mostra legenda didatica, tabela de objetos e eventos recentes; build/testes passaram; sanitizers passaram; referencias Graphviz restantes aparecem apenas no historico do diario.
+- Erros da IA ou sugestoes rejeitadas: a camada Graphviz implementada anteriormente foi removida por ser confusa e desnecessaria para o entendimento do GC.
+- Pendencias e proximo passo: revisar o diff final e, se aprovado pelo usuario, criar um commit focado na melhoria do visualizador de terminal.
+
+## 2026-06-26 12:12 - Commit do visualizador terminal-first autorizado
+
+- Prompt/objetivo: criar o commit das alteracoes que removem a camada Graphviz e consolidam a visualizacao didatica do GC no terminal.
+- Fase do PLAN.md: pos-entrega final; commit de pedido extra do desenvolvedor.
+- Arquivos examinados: `DIARIO.md`, `README.md`, `examples/gc_visualizer.c`, estado Git e diff local.
+- Alteracoes realizadas: registrada a autorizacao do commit no diario; nenhuma alteracao de codigo adicional foi feita.
+- Decisoes e justificativas: usar um commit unico porque o escopo e coeso: simplificacao da observabilidade, documentacao e rastreabilidade da decisao de remover Graphviz.
+- Riscos ou erros procurados: commitar vestigios ativos de Graphviz, incluir artefatos gerados de `build/`, esquecer o registro do pedido no diario, ou criar commit sem validacao recente.
+- Testes executados: revisao de `git status`, `git diff --stat`, `git diff --check`, alem das validacoes recentes `.\scripts\run_gc_visualizer.ps1 -Demo`, `mingw32-make clean all test` e `mingw32-make sanitize`.
+- Resultados: diff restrito a `DIARIO.md`, `README.md` e `examples/gc_visualizer.c`; `git diff --check` sem erros; validacoes anteriores passaram.
+- Erros da IA ou sugestoes rejeitadas: nenhum novo; mantida a rejeicao da camada Graphviz por clareza didatica.
+- Pendencias e proximo passo: criar o commit e enviar `main` para `origin`.
