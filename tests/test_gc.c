@@ -12,7 +12,11 @@
 #include <stdint.h>
 #include <string.h>
 
+#if defined (__GNUC__) 
 #define GC_TEST_NOINLINE __attribute__((noinline))
+#else
+#define GC_TEST_NOINLINE
+#endif
 
 static DWORD WINAPI shutdown_from_other_thread(LPVOID context)
 {

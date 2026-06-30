@@ -26,15 +26,23 @@ typedef struct {
     GCFreeBlock *free_list;
 } GCSizeClass;
 
+/*
+Arena é um bloco grande de memoria alocado com VirtualAlloc()
+Esse bloco é dividio em blocos de memoria de mesma classe menores para alocar objetos pequenos
+Isso garante melhor performace, uso do SO e otimiza o uso de memoria para objetos menores 
+*/
 typedef struct GCArena {
-    unsigned char *memory;
+    unsigned char *memory; //Bloco da arena alocado com VirtualAlloc()
     size_t capacity;
     size_t used;
-    size_t live_blocks;
-    size_t block_size;
+    size_t live_blocks; 
+    size_t block_size; 
     struct GCArena *next;
 } GCArena;
 
+/*
+Quantidade de tipos divisões possiveis por bloco alocado com VirtualAlloc() 
+*/
 static GCSizeClass gc_size_classes[GC_SMALL_CLASS_COUNT] = {
     {32u, NULL},
     {64u, NULL},
@@ -72,6 +80,7 @@ static bool add_sizes(size_t left, size_t right, size_t *result)
     return true;
 }
 
+//Alinha o bloco alocado para caber perfeitamente em uma classe/arena/pegina dedicada
 static bool align_size(size_t value, size_t alignment, size_t *result)
 {
     size_t remainder;
@@ -137,9 +146,9 @@ static GCArena *gc_arena_create(size_t block_size)
     if (arena == NULL) {
         return NULL;
     }
-    arena->memory = VirtualAlloc(NULL, GC_ARENA_SIZE,
-                                 MEM_RESERVE | MEM_COMMIT,
-                                 PAGE_READWRITE);
+    
+    //Chamada ao SO para alocação de uma grande região de memoria
+    arena->memory = VirtualAlloc(NULL, GC_ARENA_SIZE, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     if (arena->memory == NULL) {
         free(arena);
         return NULL;
@@ -333,13 +342,10 @@ static void gc_size_classes_reset(void)
 
 static void *gc_dedicated_allocate(size_t size)
 {
-    return VirtualAlloc(NULL, size, MEM_RESERVE | MEM_COMMIT,
-                        PAGE_READWRITE);
+    return VirtualAlloc(NULL, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 }
 
-bool gc_allocator_reservation_size(size_t requested,
-                                   size_t page_size,
-                                   size_t *reserved)
+bool gc_allocator_reservation_size(size_t requested, size_t page_size, size_t *reserved)
 {
     size_t layout_size;
 
@@ -361,7 +367,7 @@ bool gc_allocator_reservation_size(size_t requested,
 }
 
 GCAllocation *gc_allocator_create(size_t requested, size_t reserved)
-{
+{      
     GCAllocation *allocation = malloc(sizeof *allocation);
     uintptr_t start;
     unsigned char *block;

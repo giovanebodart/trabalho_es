@@ -1029,3 +1029,484 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: diff restrito a `DIARIO.md`, `README.md` e `examples/gc_visualizer.c`; `git diff --check` sem erros; validacoes anteriores passaram.
 - Erros da IA ou sugestoes rejeitadas: nenhum novo; mantida a rejeicao da camada Graphviz por clareza didatica.
 - Pendencias e proximo passo: criar o commit e enviar `main` para `origin`.
+
+## 2026-06-26 19:33 - Explicacao sobre VMMap e prova do GC
+
+- Prompt/objetivo: explicar como usar o VMMap para demonstrar que o garbage collector funciona corretamente.
+- Fase do PLAN.md: pos-entrega final; pergunta conceitual e de validacao visual complementar.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `EXPLAIN.md`, `DIARIO.md`, estado Git e documentacao oficial do Microsoft Sysinternals VMMap.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: esclarecer que VMMap deve ser usado como evidencia externa de memoria do processo, nao como prova isolada de correcao logica; a prova continua dependendo de testes, invariantes, estatisticas internas, sanitizers e cenarios controlados.
+- Riscos ou erros procurados: sugerir uma ferramenta visual como prova absoluta, confundir working set com memoria viva do coletor, ignorar cache/reuso de arenas, ou interpretar estabilizacao de memoria como garantia de que objetos vivos nao foram coletados.
+- Testes executados: revisao documental, `git status --short --branch` e busca local por `VMMap.exe` no PATH e em diretorios comuns.
+- Resultados: reposititorio estava limpo antes da explicacao; `VMMap.exe` nao foi encontrado no PATH nem nos locais comuns verificados; explicacao registrada em `EXPLAIN.md`.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: se o usuario quiser usar VMMap na pratica, instalar/baixar Sysinternals VMMap e preparar um executavel de demonstracao com pontos de pausa para capturar snapshots antes e depois de `gc_collect()`.
+
+## 2026-06-26 19:49 - Interpretacao do VMMap com gc_visualizer
+
+- Prompt/objetivo: explicar como o VMMap funciona e por que operacoes feitas no `gc_visualizer` nao mudaram nada perceptivel no VMMap.
+- Fase do PLAN.md: pos-entrega final; pergunta conceitual de validacao visual complementar.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `examples/gc_visualizer.c`, `src/allocator.c`, `src/gc.c`, `benchmarks/scale_allocations.c`, `benchmarks/fire_test.c`, `Makefile` e estado Git.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: explicar que VMMap observa memoria por processo/paginas/regioes, enquanto `gc_visualizer` manipula poucos objetos pequenos; recomendar benchmarks com volume maior para produzir diferencas visiveis.
+- Riscos ou erros procurados: interpretar ausencia de mudanca no VMMap como falha do GC, confundir objetos coletados com memoria devolvida ao Windows, ignorar granularidade de paginas e arenas de 64 KiB, ou usar working set como unica metrica.
+- Testes executados: revisao de codigo e documentacao; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: identificado que `gc_visualizer` limita a demonstracao a 10 objetos pequenos e que o alocador usa arenas de 64 KiB para blocos pequenos; portanto, operacoes locais podem nao alterar numeros visiveis no VMMap.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: se for necessario capturar evidencia visual no VMMap, criar ou usar uma carga maior com pausa controlada, preferencialmente baseada em `bench_scale_allocations.exe` ou `bench_fire_test.exe`.
+
+## 2026-06-26 20:27 - Explicacao da struct GCState
+
+- Prompt/objetivo: explicar para que serve cada campo e os tipos dos campos da struct `GCState` em `src/gc.c`.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/gc.c`, `src/allocator.h`, `include/interval_tree.h`, `src/old_pages.h`, `src/roots.h`, `include/gc.h`, `include/gc_stats.h`, `include/gc_config.h` e estado Git.
+- Alteracoes realizadas: adicionada explicacao resumida em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: explicar `GCState` como o estado global interno que centraliza ciclo de vida, politica de coleta, estruturas de dados, estatisticas e status do coletor.
+- Riscos ou erros procurados: confundir `bytes_reserved` com memoria virtual do Windows, omitir dependencia Win32 dos tipos `DWORD`/`PVOID`, confundir lista de alocacoes com arvore de intervalos ou interpretar raizes explicitas como valores em vez de enderecos de variaveis.
+- Testes executados: revisao de codigo e tipos relacionados; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: mapeamento campo a campo preparado para resposta ao usuario e explicacao registrada.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: continuar explicacoes do core, se solicitado, pela inicializacao `gc_init()` ou pelo fluxo de `gc_malloc()`.
+
+## 2026-06-26 21:29 - Explicacao das somas saturadas de metricas
+
+- Prompt/objetivo: explicar o que fazem `gc_add_size_metric()` e `gc_add_tick_metric()` e por que aparecem nomes em caixa alta como `SIZE_MAX` e `UINT64_MAX`.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/gc.c` e estado Git.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: explicar as funcoes como somas saturadas usadas para impedir overflow em metricas acumuladas de tamanho/contagem e tempo.
+- Riscos ou erros procurados: chamar `SIZE_MAX` e `UINT64_MAX` de tipos em vez de macros/constantes, ignorar overflow de inteiros sem sinal, ou confundir metricas acumuladas com valores de uma unica coleta.
+- Testes executados: revisao de codigo e busca pelos usos das funcoes em `src/gc.c`; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: identificado que `gc_add_size_metric()` acumula metricas `size_t` como buscas/comparacoes da arvore e que `gc_add_tick_metric()` acumula ticks `uint64_t` de pausa, marcacao e sweep; `src/gc.c` ja estava modificado com comentarios locais e foi preservado sem edicao.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: continuar a explicacao do core pelo fluxo de `gc_collect()` ou pela diferenca entre metricas acumuladas e metricas da ultima coleta.
+
+## 2026-06-26 21:37 - Explicacao do handler da barreira de escrita
+
+- Prompt/objetivo: explicar para que serve `gc_write_barrier_handler()` e por que o trecho usa `#if GC_OLD_PAGES_PROTECTION_SUPPORTED` e `#endif`.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/gc.c`, `src/old_pages.h`, `src/old_pages.c` e estado Git.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: explicar o handler como parte da barreira de escrita geracional baseada em `VirtualProtect()` e explicar o `#if/#endif` como compilacao condicional para builds em que a protecao de paginas e suportada.
+- Riscos ou erros procurados: confundir excecao de escrita do GC com qualquer `EXCEPTION_ACCESS_VIOLATION`, omitir que excecoes nao tratadas devem retornar `EXCEPTION_CONTINUE_SEARCH`, ou ignorar que a barreira e desativada em builds com AddressSanitizer.
+- Testes executados: revisao de codigo e busca por usos de `GC_OLD_PAGES_PROTECTION_SUPPORTED`, `AddVectoredExceptionHandler`, `VirtualProtect` e constantes de excecao; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: identificado que a macro vem de `src/old_pages.h`, vale `0` com AddressSanitizer e `1` em builds normais; o handler e instalado em `gc_init()` e usado para marcar/desproteger paginas antigas quando ocorre escrita valida em pagina protegida.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: continuar a explicacao do core pelo fluxo de instalacao da barreira em `gc_init()` ou pela estrutura `GCOldPage`.
+
+## 2026-06-27 11:38 - Explicacao do crescimento do limite de memoria
+
+- Prompt/objetivo: explicar a funcao `gc_grow_memory_limit(size_t required)`.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/gc.c`, `include/gc_config.h`, `include/gc.h`, `src/gc_internal.h` e estado Git.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: explicar a funcao como politica de crescimento exponencial do limite interno de memoria, separando claramente calculo de limite, pedido de coleta e alocacao real.
+- Riscos ou erros procurados: confundir `required` com memoria alocada imediatamente, ignorar a protecao contra overflow em `limit *= 2`, ou esquecer que o novo limite so e aplicado em `gc_malloc()` apos a alocacao ser criada com sucesso.
+- Testes executados: revisao de codigo e busca pelos usos de `gc_grow_memory_limit`, `gc_prepare_memory_pressure`, `memory_limit` e `SIZE_MAX`; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: identificado que a funcao dobra `gc_state.memory_limit` ate cobrir `required`, retornando `required` quando dobrar poderia estourar `size_t`; o calculo e chamado durante a preparacao de pressao de memoria.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: continuar a explicacao do core por `gc_prepare_memory_pressure()` ou pelo fluxo de `gc_malloc()`.
+
+## 2026-06-27 12:02 - Explicacao de limpeza de marcas e validacao de integridade
+
+- Prompt/objetivo: explicar `gc_clear_marks()`, `gc_validate_integrity()` e se ha separacao explicita entre funcoes do mark-sweep e do coletor geracional em `src/gc.c`.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/gc.c`, `src/sweeper.c`, `src/sweeper.h`, `src/marker.c`, `src/marker.h`, `src/old_pages.c`, `src/old_pages.h`, `src/allocator.c`, `src/allocator.h` e estado Git.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: explicar `gc_clear_marks()` como limpeza de marcas parciais em rotas de erro e `gc_validate_integrity()` como guarda de canarios e invariantes da arvore; esclarecer que a separacao mark-sweep/geracional e funcional, nao uma divisao formal por secoes no arquivo.
+- Riscos ou erros procurados: confundir limpeza de marcas em erro com sweep normal, afirmar que o arquivo possui separacao explicita inexistente, ou esquecer que `interval_tree_validate()` roda apenas quando `NDEBUG` nao esta definido.
+- Testes executados: revisao de codigo e busca pelos usos de funcoes de marcacao, sweep, remembered set, paginas antigas, coletas menores/maiores e promocao; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: confirmado que `gc_clear_marks()` percorre `gc_state.allocations`, que `gc_validate_integrity()` valida alocacoes/canarios e arvore AVL em debug, e que `gc_collect()` orquestra tanto o nucleo mark-sweep quanto as extensoes geracionais.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: continuar a explicacao do core por `gc_mark_roots()`, `gc_process_mark_queue()` ou pelo fluxo completo de `gc_collect()`.
+
+## 2026-06-27 12:16 - Explicacao da struct GCAllocation
+
+- Prompt/objetivo: explicar o que representa a struct `GCAllocation` e cada um de seus campos.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/allocator.h`, `src/allocator.c`, `src/gc.c`, `src/marker.c`, `src/sweeper.c`, `src/old_pages.c`, testes relacionados e estado Git.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: explicar `GCAllocation` como o metadado por objeto que conecta a memoria entregue ao usuario com a arvore de intervalos, a lista global, o mark-sweep, a geracao e a politica de liberacao.
+- Riscos ou erros procurados: confundir `mapping` com `memory`, esquecer que `interval` precisa ser o primeiro campo, tratar `requested_size` e `reserved_size` como equivalentes, ou omitir a diferenca entre bloco pequeno em arena e mapeamento dedicado.
+- Testes executados: revisao de codigo e busca pelos usos de `GCAllocation` e seus campos; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: preparado mapeamento campo a campo de `GCAllocation`, incluindo relacao com `gc_malloc()`, arvore de intervalos, marcacao, sweep, promocao geracional e liberacao de memoria.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: continuar a explicacao do core por `gc_allocator_create()`, `gc_allocator_destroy_one()` ou pelo caminho de uma alocacao em `gc_malloc()`.
+
+## 2026-06-27 12:32 - Explicacao de arenas e alocacao dedicada
+
+- Prompt/objetivo: explicar a diferenca entre alocacao vinda de `VirtualAlloc()` e alocacao vinda de arena, o que e uma arena e qual sua importancia.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/allocator.c`, `src/allocator.h`, `src/sweeper.c`, `tests/test_sweeper.c`, `tests/test_old_pages.c` e estado Git.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: explicar que os dois caminhos usam `VirtualAlloc()` em niveis diferentes: mapeamento dedicado por objeto grande e arena de 64 KiB subdividida para objetos pequenos.
+- Riscos ou erros procurados: afirmar que arenas nao usam `VirtualAlloc()`, confundir arena com metadado `GCAllocation`, ignorar classes de tamanho/free lists, ou omitir que a arena pode ser liberada inteira quando fica sem blocos vivos.
+- Testes executados: revisao de codigo e busca por `GC_ARENA_SIZE`, `GCArena`, classes de tamanho, `gc_dedicated_allocate`, `dedicated_mapping`, `VirtualAlloc()` e `VirtualFree()`; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: identificado que objetos pequenos usam classes de tamanho ate 1024 bytes dentro de arenas de 64 KiB, enquanto blocos maiores usam mapeamento dedicado; a explicacao foi registrada.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: continuar a explicacao pelo fluxo de `gc_allocator_create()` ou pelas classes de tamanho/free lists.
+
+## 2026-06-27 13:02 - Explicacao de marcacao de raizes explicitas
+
+- Prompt/objetivo: explicar `gc_mark_explicit_roots()` e os tipos `GCStatus`, `GCMarkQueue`, `GCRoot` e `GCMarkQueueResult`, incluindo campos quando houver structs.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/gc.c`, `include/gc.h`, `src/marker.h`, `src/marker.c`, `src/roots.h`, `src/roots.c`, testes relacionados e estado Git.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: explicar a funcao como a etapa que transforma valores atuais das raizes explicitas em objetos marcados/enfileirados para processamento posterior.
+- Riscos ou erros procurados: chamar enums de structs, confundir endereco da variavel-raiz com valor atual da raiz, omitir a conversao segura de `IntervalNode *` para `GCAllocation *` dependente de `interval` ser o primeiro campo, ou esquecer que `gc_mark_queue_push()` ja marca o objeto.
+- Testes executados: revisao de codigo e busca por definicoes/usos de `GCStatus`, `GCMarkQueue`, `GCRoot`, `GCMarkQueueResult`, `gc_mark_find_candidate()` e `gc_mark_queue_push()`; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: confirmado que `GCStatus` e `GCMarkQueueResult` sao enums, enquanto `GCMarkQueue` e `GCRoot` sao structs; preparado mapeamento dos campos e do fluxo de marcacao das raizes explicitas.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: continuar a explicacao pelo processamento da fila em `gc_process_mark_queue()` ou pela varredura conservadora dos objetos em `gc_mark_scan_object()`.
+
+## 2026-06-27 13:36 - Explicacao de raizes em registradores e raizes explicitas
+
+- Prompt/objetivo: explicar `gc_mark_register_roots()` e o que e exatamente uma raiz explicita e por que ela e usada.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/gc.c`, `src/register_roots.h`, `src/register_roots.c`, `src/marker.h`, `src/marker.c`, `src/roots.h`, `src/roots.c` e estado Git.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: esclarecer que `gc_mark_register_roots()` marca candidatos conservadores vindos dos registradores, enquanto raizes explicitas sao variaveis registradas manualmente por endereco com `gc_add_root()`.
+- Riscos ou erros procurados: confundir raizes explicitas com raizes de registradores, omitir o uso de `setjmp()`/`jmp_buf`, afirmar que o coletor conhece precisamente todos os registradores, ou esquecer que a varredura e conservadora.
+- Testes executados: revisao de codigo e busca por definicoes/usos de `GCRegisterScanResult`, `gc_register_roots_scan()`, `setjmp`, `GCRoot`, `gc_add_root()` e `gc_mark_roots()`; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: confirmado que a funcao traduz `GCRegisterScanResult` para `GCStatus`, que registra erro de memoria como `GC_STATUS_OUT_OF_MEMORY`, e que raizes explicitas existem para dar ao GC pontos de alcance deterministicos em C.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: continuar a explicacao por `gc_mark_stack_roots()` ou por `gc_register_roots_scan_region()`.
+
+## 2026-06-27 13:55 - Diferenca entre roots e nos da arvore de intervalos
+
+- Prompt/objetivo: confirmar se roots sao um mecanismo de guardar ponteiros/objetos e se nao devem ser confundidas com os nos da arvore de intervalos.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/roots.h`, `include/interval_tree.h` e estado Git.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: esclarecer que `GCRoot` guarda o endereco de uma variavel que pode apontar para objeto gerenciado, enquanto `IntervalNode` e um no estrutural da arvore AVL usado para localizar alocacoes por endereco.
+- Riscos ou erros procurados: dizer que root guarda o objeto em si, confundir root de GC com raiz/topo da arvore, ou misturar lista de raizes com arvore de intervalos.
+- Testes executados: revisao de `GCRoot` e `IntervalNode`; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: confirmado que roots sao fontes de alcance e nos da arvore sao estruturas de busca por intervalo.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: continuar a explicacao por `gc_mark_stack_roots()` ou por como a arvore converte candidatos de ponteiro em `GCAllocation`.
+
+## 2026-06-27 14:01 - Papel da arvore de intervalos frente a arenas e VirtualAlloc
+
+- Prompt/objetivo: confirmar se a arvore de intervalos atua como gerenciador de toda a memoria, guardando intervalos que podem possuir arenas com blocos/objetos ou blocos criados com `VirtualAlloc()`.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/gc.c`, `src/allocator.c`, `src/allocator.h`, `src/old_pages.c`, `include/interval_tree.h` e estado Git.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: esclarecer que a arvore de intervalos indexa objetos/alocacoes individuais, enquanto o alocador gerencia arenas, blocos livres e mapeamentos dedicados.
+- Riscos ou erros procurados: dizer que a arvore guarda a arena inteira como um unico intervalo de objetos, confundir `mapping`/`reserved_size` com o intervalo visivel `memory`/`requested_size`, ou tratar a arvore como dona da memoria fisica.
+- Testes executados: revisao de `gc_allocator_create()`, insercao em `interval_tree_insert()`, campos `mapping`, `memory`, `requested_size`, `reserved_size`, arenas e mapeamentos dedicados; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: confirmado que cada `GCAllocation` cria um intervalo `[memory, memory + requested_size)` e esse intervalo individual e inserido na arvore; arenas sao gerenciadas separadamente por `gc_arenas` e free lists.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: continuar a explicacao por `gc_mark_find_candidate()` ou pelo relacionamento entre `IntervalNode` e `GCAllocation`.
+
+## 2026-06-27 17:28 - Quantidade e origem das raizes do GC
+
+- Prompt/objetivo: explicar quantas raizes o GC usa normalmente e como elas apontam para objetos.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/gc.c`, `src/stack_roots.c`, `src/register_roots.c`, `src/roots.h`, `src/marker.c` e estado Git.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: explicar que o projeto nao possui um numero fixo de raizes individuais, mas tres fontes principais de raizes no fluxo normal e uma fonte complementar em coletas menores geracionais.
+- Riscos ou erros procurados: confundir quantidade de categorias com quantidade de raizes individuais, esquecer que pilha/registradores sao varreduras conservadoras, omitir ponteiros interiores, ou tratar remembered set como raiz explicita.
+- Testes executados: revisao de `gc_mark_roots()`, `gc_mark_explicit_roots()`, `gc_mark_register_roots()`, `gc_mark_stack_roots()`, `gc_mark_remembered_old_roots()` e funcoes de varredura; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: confirmado que o fluxo normal usa raizes explicitas, registradores e pilha; em coleta menor tambem considera objetos antigos/paginas sujas como fonte complementar para referencias old-to-young.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: continuar a explicacao por `gc_mark_find_candidate()` ou por como ponteiros interiores sao resolvidos pela arvore.
+
+## 2026-06-27 17:45 - Revisao do fluxo geral de alocacao, mark e sweep
+
+- Prompt/objetivo: revisar e corrigir o entendimento do fluxo usando como base o teste de fogo com ate `10^7` objetos gerenciados.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `benchmarks/fire_test.c`, `src/gc.c`, `src/sweeper.c`, `src/allocator.c` e estado Git.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: corrigir o fluxo conceitual separando alocacao, insercao na arvore, perda de alcance, marcacao, propagacao pela fila e coleta no sweep.
+- Riscos ou erros procurados: sugerir que o mark coleta objetos, afirmar que perder uma referencia sempre mata o objeto, confundir objetos historicamente alocados com objetos simultaneamente registrados na arvore, ou ignorar a diferenca entre coleta maior e menor.
+- Testes executados: revisao de `fire_test`, `gc_malloc()`, `gc_collect()`, `gc_sweep()` e `gc_sweep_young()`; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: confirmado que a arvore contem intervalos dos objetos atualmente registrados, que a marcacao parte das raizes e se propaga pela fila, e que a liberacao real ocorre no sweep; tambem foi observado que `fire_test --full` usa `10^7` como maximo, mas divide a carga em ciclos.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: continuar a explicacao por `gc_process_mark_queue()` ou pela diferenca entre `gc_sweep()` e `gc_sweep_young()`.
+
+## 2026-06-27 17:56 - Diferenca entre estar na arvore e estar vivo
+
+- Prompt/objetivo: esclarecer se objetos vivos necessariamente estao na arvore de intervalos e se objetos fora dela sao considerados mortos.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/gc.c`, `src/sweeper.c`, `src/allocator.c` e estado Git.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: esclarecer que a arvore de intervalos indexa objetos gerenciados atualmente registrados, mas a vivacidade depende de alcance/marcacao, nao apenas de estar na arvore.
+- Riscos ou erros procurados: confundir objeto registrado com objeto vivo, dizer que objetos mortos saem da arvore antes do sweep, ou tratar ponteiros fora da arvore como objetos mortos em vez de memoria nao gerenciada/ja liberada/invalida.
+- Testes executados: revisao de `interval_tree_insert`, `interval_tree_remove`, `marked`, `gc_sweep` e `gc_sweep_young`; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: confirmado que `gc_malloc()` insere objetos na arvore, que o mark apenas marca alcancaveis, e que o sweep remove da arvore os objetos nao marcados que sao coletaveis.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: continuar a explicacao por `gc_sweep()`/`gc_sweep_young()` ou por `gc_mark_find_candidate()`.
+
+## 2026-06-27 21:22 - Funcao gc_mark_remembered_old_roots
+
+- Prompt/objetivo: explicar o papel de `gc_mark_remembered_old_roots(GCMarkQueue *queue)`.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/gc.c`, `src/marker.c`, `src/old_pages.c`, `src/allocator.h` e `tests/test_gc.c`.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: explicar a funcao como parte do remembered set/conjunto de objetos antigos que viram raizes temporarias em coleta menor para preservar referencias antigo-para-jovem.
+- Riscos ou erros procurados: confundir a funcao com sweep, afirmar que ela coleta objetos, ou omitir que `gc_mark_queue_push()` marca o objeto e agenda seu escaneamento posterior.
+- Testes executados: revisao dos trechos `gc_old_allocation_needs_minor_scan()`, `gc_mark_remembered_old_roots()`, chamada em `gc_collect()`, `gc_mark_queue_push()` e testes de preservacao de referencia jovem em objeto antigo; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: confirmado que a funcao percorre `gc_state.allocations`, seleciona objetos antigos que precisam ser escaneados em coleta menor e os adiciona a fila de marcacao, tratando erros de memoria/argumento.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: explicar `gc_old_allocation_needs_minor_scan()` ou o mecanismo de paginas antigas sujas/protegidas.
+
+## 2026-06-27 21:37 - Funcao gc_rebuild_old_pages
+
+- Prompt/objetivo: explicar para que serve `gc_rebuild_old_pages()`.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/gc.c`, `src/old_pages.c` e `src/old_pages.h`.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: explicar a funcao como etapa de manutencao do remembered set/write barrier apos o sweep, reconstruindo a lista de paginas antigas e rearme de protecao de escrita.
+- Riscos ou erros procurados: confundir a funcao com marcacao/coleta direta, omitir que ela roda depois do sweep, ou esquecer que a lista reconstruida considera apenas alocacoes antigas com mapeamento dedicado.
+- Testes executados: revisao de `gc_rebuild_old_pages()`, chamada apos o sweep em `gc_collect()`, `gc_old_pages_rebuild()` e `gc_old_pages_protect()`; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: confirmado que a funcao reconstrói `gc_state.old_pages`, traduz erros internos para `GCStatus`, protege paginas antigas quando suportado e prepara a deteccao de escritas futuras.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: explicar `gc_old_pages_rebuild()`, `gc_old_pages_protect()` ou o handler da write barrier em conjunto.
+
+## 2026-06-27 21:41 - Conceito de paginas no GC
+
+- Prompt/objetivo: explicar o que seriam as paginas mencionadas nas funcoes de paginas antigas.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/gc.c`, `src/old_pages.h`, `src/old_pages.c` e `src/allocator.c`.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: separar o conceito de pagina do sistema operacional do metadado `GCOldPage`, explicando que o projeto rastreia regioes antigas protegiveis, que podem cobrir uma ou mais paginas reais.
+- Riscos ou erros procurados: dizer que cada `GCOldPage` e obrigatoriamente uma unica pagina fisica, confundir pagina com objeto, ou omitir o papel de `VirtualProtect()`/dirty bit.
+- Testes executados: revisao de `GetSystemInfo().dwPageSize`, `gc_state.page_size`, `gc_allocator_reservation_size()`, `GCOldPage`, `gc_old_pages_protect()` e `VirtualAlloc()`; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: confirmado que o GC usa o tamanho de pagina do Windows para alinhar reservas grandes e usa `GCOldPage` como registro de regioes antigas protegidas para detectar escritas futuras.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: explicar a diferenca entre pagina do SO, arena, objeto e mapeamento dedicado.
+
+## 2026-06-27 22:03 - Funcao gc_init
+
+- Prompt/objetivo: explicar exatamente o que faz `gc_init()` e o que representa cada struct e variavel usada nessa funcao.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/gc.c`, `src/old_pages.h` e `include/gc.h`.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: explicar a inicializacao como preparacao do estado global, captura da thread dona, limites da stack, tamanho de pagina do Windows e instalacao opcional da write barrier.
+- Riscos ou erros procurados: confundir `SYSTEM_INFO` com estado do GC, omitir a validacao de dupla inicializacao/thread errada, ou deixar de mencionar que `AddVectoredExceptionHandler()` so compila quando a macro de protecao de paginas antigas permite.
+- Testes executados: revisao de `gc_init()`, definicoes de `GC_SUCCESS`/`GC_FAILURE`, enum `GCStatus`, macro `GC_OLD_PAGES_PROTECTION_SUPPORTED`, campos de `GCState` e instalacao/remocao do handler; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: confirmado que `gc_init()` nao aloca objetos do usuario; ela prepara o coletor para operar com thread unica, stack scan, page size, status inicial e write barrier quando suportada.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: explicar `gc_malloc()` ou o fluxo de shutdown que desfaz a inicializacao.
+
+## 2026-06-27 22:38 - Funcao gc_malloc
+
+- Prompt/objetivo: explicar para que serve `gc_malloc(size_t size)`.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/gc.c`, `src/allocator.c`, `src/allocator.h`, `include/gc_stats.h`, `include/interval_tree.h` e testes relacionados.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: explicar `gc_malloc()` como a porta de entrada da alocacao gerenciada, separando validacoes, calculo de reserva, pressao de memoria, criacao de `GCAllocation`, insercao na arvore e atualizacao de metricas.
+- Riscos ou erros procurados: confundir `size` com `reserved`, omitir a limpeza em caso de falha ao inserir na arvore, tratar `gc_malloc()` como simples `malloc`, ou esquecer que o ponteiro retornado e a area util e nao o inicio do mapeamento.
+- Testes executados: revisao de `gc_malloc()`, `gc_allocator_reservation_size()`, `gc_prepare_memory_pressure()`, `gc_allocator_create()`, `interval_tree_insert()` e testes de GC/sweeper; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: confirmado que a funcao valida estado/thread/tamanho, calcula reserva, cria metadados e memoria, registra intervalo na arvore, encadeia a alocacao em `gc_state.allocations`, atualiza estatisticas e retorna `allocation->memory`.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: explicar `gc_allocator_reservation_size()` ou `gc_allocator_create()` em detalhes.
+
+## 2026-06-27 23:10 - Limite de memoria do GC
+
+- Prompt/objetivo: explicar por que o GC tem um limite de memoria e o que esse limite representa de fato dentro do coletor.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/gc.c`, `include/gc_config.h`, `include/gc_stats.h` e testes de limite em `tests/test_gc.c`.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: explicar `memory_limit` como limiar interno de pressao baseado em `bytes_reserved`, nao como limite duro de memoria do sistema operacional ou como sinonimo de memoria viva.
+- Riscos ou erros procurados: afirmar incorretamente que o limite impede toda alocacao acima dele, confundir `bytes_reserved` com `bytes_live`, ou omitir que o limite cresce de forma adaptativa apos uma alocacao bem-sucedida.
+- Testes executados: revisao de `gc_prepare_memory_pressure()`, `gc_grow_memory_limit()`, `gc_request_collection()`, `gc_set_memory_limit()`, `GC_DEFAULT_MEMORY_LIMIT`, `GCStats.bytes_reserved` e testes que validam crescimento do limite/contador de solicitacoes; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: confirmado que o limite padrao e 64 MiB, pode ser configurado, e quando `bytes_reserved + reserved` ultrapassa esse valor o GC registra pressao de memoria, calcula novo limite e continua a alocacao se os demais passos forem bem-sucedidos.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: explicar `gc_prepare_memory_pressure()` ou a diferenca entre `bytes_requested`, `bytes_live`, `bytes_reserved` e fragmentacao interna.
+
+## 2026-06-27 23:15 - Razoes para exceder memory_limit
+
+- Prompt/objetivo: esclarecer por quais razoes `memory_limit` pode ser excedido, se isso ocorre pela quantidade de memoria alocada pelo alocador do GC e se pode acontecer com muitos objetos.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/gc.c`, `src/allocator.c`, `include/gc_stats.h` e testes relacionados.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: explicar que a ultrapassagem do limite e causada por `bytes_reserved + reserved > memory_limit`, destacando que o gatilho e a soma de bytes reservados ativos, nao a contagem de objetos isoladamente.
+- Riscos ou erros procurados: tratar o limite como memoria historica total, dizer que so objetos grandes excedem o limite, ou esquecer que muitos objetos pequenos tambem podem acumular reserva suficiente.
+- Testes executados: revisao de `gc_prepare_memory_pressure()`, `gc_malloc()`, `gc_allocator_reservation_size()`, constantes de arena e testes de crescimento do limite; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: confirmado que o limite pode ser excedido por muitos objetos pequenos, poucos objetos grandes, fragmentacao interna/alinhamento ou limite configurado baixo; objetos coletados reduzem `bytes_reserved` durante o sweep.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: explicar numericamente a diferenca entre `size`, `reserved`, `bytes_reserved` e `memory_limit`.
+
+## 2026-06-27 23:26 - Explicacao detalhada de gc_collect
+
+- Prompt/objetivo: explicar com muitos detalhes a funcao `gc_collect()`, considerada o core do GC, campo por campo e minucia por minucia.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, anexo `pasted-text.txt`, `src/gc.c`, `src/marker.h`, `src/marker.c`, `src/sweeper.c` e `include/gc_stats.h`.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: explicar `gc_collect()` como orquestrador central das etapas de coleta, separando validacoes, decisao menor/maior, mark, remembered old roots, processamento da fila, sweep, reconstrução de paginas antigas e atualizacao de metricas.
+- Riscos ou erros procurados: chamar `gc_collect()` de algoritmo isolado sem explicar seus colaboradores, confundir coleta menor com maior, omitir limpeza de marcas em erro, ou deixar de explicar que `QueryPerformanceCounter()` mede ticks e nao milissegundos diretamente.
+- Testes executados: revisao de `gc_collect()`, `gc_mark_roots()`, `gc_mark_remembered_old_roots()`, `gc_process_mark_queue()`, `gc_sweep()`, `gc_sweep_young()`, `gc_rebuild_old_pages()`, campos de `GCMarkQueue` e campos de `GCStats`; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: preparado mapeamento detalhado das variaveis locais e do fluxo completo de coleta, incluindo tratamento de erro, metricas e diferenca entre coletas menores e maiores.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: se necessario, decompor `gc_collect()` em um diagrama de fases ou explicar linha a linha em blocos menores.
+
+## 2026-06-28 00:38 - Funcoes internas de consulta de paginas antigas
+
+- Prompt/objetivo: explicar para que servem `gc_internal_old_page_count()`, `gc_internal_get_old_page_info()` e `gc_internal_get_old_page_state()`.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/gc.c`, `src/gc_internal.h`, `src/old_pages.h` e `tests/test_gc.c`.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: explicar essas funcoes como API interna de introspeccao/teste para consultar a lista `gc_state.old_pages` sem expor diretamente os metadados privados pela API publica.
+- Riscos ou erros procurados: confundir essas funcoes com parte do algoritmo de coleta, omitir que elas nao alteram estado, ou deixar de mencionar a inicializacao defensiva dos parametros de saida antes das validacoes.
+- Testes executados: revisao de implementacao em `src/gc.c`, declaracoes em `src/gc_internal.h`, campos de `GCOldPage` em `src/old_pages.h` e uso em `test_old_page_tracking_after_promotion`; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: confirmado que a primeira funcao conta paginas antigas rastreadas, a segunda retorna base/tamanho da regiao antiga que contem um endereco, e a terceira retorna flags `dirty`/`protected` dessa regiao.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: explicar `GCOldPage` novamente em conjunto com `gc_old_pages_find()` e `gc_old_pages_count()`, se necessario.
+
+## 2026-06-28 00:56 - Raizes explicitas e busca conservadora por ponteiros
+
+- Prompt/objetivo: explicar as funcoes de `roots.c` e esclarecer como as raizes realmente funcionam, incluindo como o GC busca possiveis ponteiros/enderecos que apontam para intervalos da arvore de memoria.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/roots.h`, `src/roots.c`, `src/gc.c`, `src/marker.c`, `src/stack_roots.c`, `src/register_roots.c` e `include/interval_tree.h`.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: enfatizar que raiz explicita guarda o endereco da variavel (`void **location`) e nao o objeto, e que a arvore de intervalos e consultada a partir de candidatos de ponteiro vindos de roots, registradores, pilha e objetos marcados.
+- Riscos ou erros procurados: confundir root com no da arvore, dizer que a arvore varre memoria sozinha, omitir ponteiros interiores, ou esquecer que o scan conservador pode tratar qualquer palavra com valor semelhante a endereco como candidato.
+- Testes executados: revisao de `gc_roots_add()`, `gc_roots_remove()`, `gc_roots_get_value()`, `gc_mark_explicit_roots()`, `gc_mark_find_candidate()`, `gc_mark_scan_object()`, `gc_stack_scan_region()`, `gc_register_roots_scan_region()` e `interval_tree_find_counted()`; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: confirmado que as roots explicitas sao uma lista de enderecos de variaveis, e que a descoberta de objetos vivos ocorre convertendo valores candidatos para `uintptr_t` e consultando se caem em algum intervalo gerenciado da arvore.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: se necessario, montar um exemplo numerico com enderecos ficticios para mostrar root -> candidato -> intervalo -> `GCAllocation`.
+
+## 2026-06-28 01:08 - Candidatos nao encontrados na arvore
+
+- Prompt/objetivo: explicar o que acontece quando o GC busca um endereco na arvore e ele nao aponta para objeto gerenciado, se isso significa que deve ser coletado, e como o GC descobre enderecos candidatos em registradores, pilha e heap.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/marker.c`, `src/stack_roots.c`, `src/register_roots.c`, `src/sweeper.c`, `src/gc.c` e `include/interval_tree.h`.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: separar "candidato nao encontrado" de "objeto coletavel", explicando que o primeiro apenas nao marca nada, enquanto coleta depende de objetos gerenciados permanecerem sem marca ate o sweep.
+- Riscos ou erros procurados: dizer que memoria externa deve ser coletada pelo GC, confundir candidato de ponteiro com objeto gerenciado, ou omitir que as varreduras conservadoras avancam byte a byte lendo palavras de tamanho `uintptr_t`.
+- Testes executados: revisao de `gc_mark_find_candidate()`, `gc_mark_scan_object()`, `gc_stack_scan_region()`, `gc_register_roots_scan_region()`, `gc_mark_queue_push()` e `gc_sweep_scope()`; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: confirmado que candidatos nao encontrados sao ignorados; somente objetos em `gc_state.allocations`/arvore podem ser coletados, e isso ocorre se ficarem sem `marked` apos o mark e estiverem no escopo do sweep.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: se necessario, criar um exemplo com enderecos ficticios mostrando candidatos encontrados e ignorados durante uma coleta.
+
+## 2026-06-28 12:03 - Criterio de vida por alcancabilidade
+
+- Prompt/objetivo: explicar como o GC sabe se um objeto esta vivo ou morto, mesmo podendo acessar partes do heap que contem objetos vivos e mortos.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/marker.c`, `src/gc.c`, `src/sweeper.c`, `src/allocator.h` e testes de marker/sweeper.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: explicar que vida no mark-sweep e definida por alcancabilidade a partir de raizes, nao por existencia fisica na memoria ou por estar acessivel antes do sweep.
+- Riscos ou erros procurados: afirmar que o GC sabe vida exata de objetos em C, confundir objeto acessivel fisicamente com objeto vivo, omitir falsos positivos conservadores, ou esquecer a diferenca de escopo entre coleta menor e maior.
+- Testes executados: revisao de `gc_mark_queue_push()`, `gc_process_mark_queue()`, `gc_mark_scan_object()`, `gc_sweep_scope()` e teste `test_sweep_releases_unmarked_objects`; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: confirmado que objetos marcados sobrevivem, objetos nao marcados e coletaveis sao removidos no sweep, e que o projeto usa uma definicao conservadora de alcancabilidade.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: se necessario, explicar o mesmo fluxo com exemplo de ciclo vivo, ciclo morto e falso positivo conservador.
+
+## 2026-06-28 12:19 - Por que existem raizes explicitas
+
+- Prompt/objetivo: explicar por que existem raizes explicitas se o GC tambem varre pilha, registradores e o interior de objetos marcados.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/gc.c`, `src/marker.c`, `src/register_roots.c`, `src/stack_roots.c`, `src/roots.c` e `include/gc.h`.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: explicar raizes explicitas como ancoras deterministicas de alcance, enquanto registradores/pilha sao fontes conservadoras e o heap marcado apenas propaga alcance a partir de objetos ja descobertos.
+- Riscos ou erros procurados: sugerir que escanear o heap inteiro resolveria vida corretamente, omitir que ciclos mortos se preservariam se referencias internas bastassem, ou tratar pilha/registradores como fontes exatas em C.
+- Testes executados: revisao de `gc_mark_roots()`, `gc_mark_explicit_roots()`, `gc_mark_register_roots()`, `gc_mark_stack_roots()`, `gc_process_mark_queue()` e `gc_mark_scan_object()`; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: confirmado que as raizes explicitas sao o mecanismo preciso/intencional para declarar fontes de alcance, e que a varredura de objetos do heap so acontece apos objetos serem marcados por alguma fonte inicial.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: se necessario, ilustrar com um ciclo morto que seria mantido se o GC varresse o heap inteiro como fonte de vida.
+
+## 2026-06-28 12:54 - Confirmacao conceitual sobre raizes como pontos de apoio
+
+- Prompt/objetivo: confirmar se raizes sao pontos da aplicacao em que o GC se apoia para buscar enderecos de objetos, especialmente em aplicacoes com muitas mudancas de referencias.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/gc.c`, `src/roots.c`, `src/roots.h`, `src/register_roots.c`, `src/stack_roots.c`, `include/gc.h` e testes de roots.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: confirmar a intuicao do usuario, ajustando que o GC gerencia metadados das roots e le os locais da aplicacao, mas nao possui as variaveis da aplicacao em si.
+- Riscos ou erros procurados: sugerir que toda root e criada automaticamente, confundir variavel da aplicacao com metadado `GCRoot`, ou omitir que o projeto combina roots explicitas com varredura conservadora de pilha/registradores.
+- Testes executados: revisao de `gc_add_root()`, `gc_mark_explicit_roots()`, `GCRoot.location`, `gc_mark_roots()`, testes de roots e funcoes de varredura conservadora; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: confirmado que roots sao fontes de alcance e pontos onde o GC busca valores candidatos atuais para consultar a arvore de intervalos.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: se necessario, explicar como uma aplicacao real escolheria quais variaveis registrar como roots explicitas.
+
+## 2026-06-28 13:29 - Definicao operacional de objeto morto
+
+- Prompt/objetivo: validar a definicao do usuario de que objetos mortos sao intervalos registrados na arvore que nao sao alcancados por raizes, registradores, pilha ou cadeias de referencias durante o mark.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/gc.c`, `src/marker.c`, `src/sweeper.c` e estado Git.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: confirmar a intuicao do usuario, ajustando que "morto" se aplica a uma `GCAllocation` conhecida que ficou `marked == false`, e nao ao intervalo isoladamente; tambem registrar a diferenca entre coleta maior e menor.
+- Riscos ou erros procurados: confundir candidato nao encontrado com objeto morto, ignorar a propagacao por objetos marcados, omitir falsos positivos da varredura conservadora ou esquecer que antigos nao marcados podem permanecer em coleta menor.
+- Testes executados: revisao conceitual de `gc_mark_roots()`, `gc_process_mark_queue()`, `gc_mark_scan_object()`, `gc_sweep()` e `gc_sweep_young()`; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: confirmado que objeto morto para este GC e objeto gerenciado nao marcado apos o mark e coletavel no sweep atual.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: se necessario, montar um exemplo com tres objetos, uma root e um objeto antigo em coleta menor.
+
+## 2026-06-28 13:51 - Sintese final das condicoes de marcacao e coleta
+
+- Prompt/objetivo: validar um ultimo resumo em tres casos sobre objetos alcancaveis, candidatos nao gerenciados e objetos nao marcados/lixo coletavel.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/gc.c`, `src/marker.c`, `src/sweeper.c` e estado Git.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: validar os tres casos do usuario, acrescentando alcance indireto por objetos marcados, remembered old roots em coleta menor, e a precisao de que o sweep coleta `GCAllocation` nao marcada e coletavel, nao o intervalo isolado.
+- Riscos ou erros procurados: omitir o alcance transitivo, tratar candidato externo como lixo do GC, confundir lista/arvore com vivacidade ou esquecer o escopo geracional.
+- Testes executados: revisao conceitual dos trechos ja examinados de mark, fila e sweep; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: resumo validado com ajustes de terminologia e escopo geracional.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: nenhuma pendencia conceitual imediata sobre os tres casos.
+
+## 2026-06-28 14:00 - Responsabilidade do allocator em aplicacoes reais
+
+- Prompt/objetivo: ao iniciar o estudo de `allocator.c`, explicar se essa parte ficaria sob responsabilidade da aplicacao ou do sistema operacional em aplicacoes reais.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/allocator.c`, `src/allocator.h`, `src/gc.c` e estado Git.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: separar responsabilidades entre aplicacao, runtime/GC/alocador e sistema operacional, explicando que o SO fornece memoria virtual bruta enquanto `allocator.c` organiza essa memoria em objetos gerenciados.
+- Riscos ou erros procurados: atribuir ao SO conhecimento de objetos do GC, atribuir a aplicacao a manutencao de arenas/free lists/metadados, ou omitir que `allocator.c` usa `VirtualAlloc()`/`VirtualFree()` como backend de memoria bruta.
+- Testes executados: revisao de `VirtualAlloc()`, arenas, classes de tamanho, `GCAllocation`, `gc_allocator_create()`, `gc_allocator_destroy_one()` e fluxo de uso por `gc_malloc()`; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: confirmado que `allocator.c` representa a camada de alocacao do runtime/GC, usando o SO como fornecedor de paginas/regioes e oferecendo objetos gerenciados para a aplicacao.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: explicar campo por campo e funcao por funcao de `allocator.c`, comecando por constantes, alinhamento, classes de tamanho e arenas.
+
+## 2026-06-28 14:12 - Canarios, prefixo e alinhamento do allocator
+
+- Prompt/objetivo: explicar o bloco de `allocator.c` com canarios de debug, `GC_CANARY_SIZE`, `GC_PREFIX_SIZE`, `_Static_assert`, `add_sizes()` e `align_size()`.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/allocator.c`, `src/allocator.h` e testes de canarios em `tests/test_gc.c`.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: explicar que o bloco define o layout seguro da alocacao em debug, detecta escritas fora dos limites por canarios e calcula tamanhos/alinhamentos com protecao contra overflow.
+- Riscos ou erros procurados: chamar `GCNaturalAlignment` de struct em vez de union, omitir que canarios somem em release com `NDEBUG`, ou deixar de explicar que `add_sizes()`/`align_size()` protegem contra overflow de `size_t`.
+- Testes executados: revisao de `gc_allocator_reservation_size()`, `gc_allocator_create()`, `gc_allocator_validate_canaries()`, `gc_allocator_corrupt_canary()` e `test_debug_canaries`; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: confirmado que `GC_PREFIX_SIZE` desloca a area util para preservar alinhamento e espaco para canario anterior, que o canario posterior fica apos `requested_size`, e que as funcoes auxiliares calculam layout de forma segura.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: explicar classes de tamanho, free lists e arenas.
+
+## 2026-06-28 14:31 - Canarios em debug e estruturas de arena
+
+- Prompt/objetivo: explicar por que canarios sao usados em debug e nao por padrao em runs normais, e explicar campo por campo `GCNaturalAlignment`, `GCFreeBlock`, `GCSizeClass` e `GCArena`.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/allocator.c`, `src/allocator.h`, `tests/test_gc.c` e estado Git.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: explicar canarios como mecanismo valioso de diagnostico que normalmente fica em debug por custo de memoria/desempenho/layout, e explicar a union de alinhamento e as estruturas de free list, classes de tamanho e arenas.
+- Riscos ou erros procurados: dizer que canarios nao sao uteis em producao, confundir union com struct, omitir que free list e intrusiva, ou deixar de explicar `live_blocks` como contador que permite liberar arenas vazias.
+- Testes executados: revisao de usos em `gc_size_class_refill()`, `gc_size_class_allocate()`, `gc_small_block_release()`, `gc_arena_release_empty()`, `gc_allocator_create()`, `gc_allocator_validate_canaries()` e `test_debug_canaries`; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: confirmado que as estruturas sustentam o alocador de blocos pequenos por classes/arenas e que canarios sao mecanismo de detecção de corrupção ativado em debug pelo uso de `NDEBUG`.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: explicar o fluxo completo de alocacao pequena: escolher classe, refil de arena, retirar da free list e devolver/liberar arena.
+
+## 2026-06-28 14:48 - Necessidade de GCFreeBlock alem dos metadados da arena
+
+- Prompt/objetivo: explicar por que `GCFreeBlock` existe se `GCArena` ja possui `capacity`, `block_size` e `live_blocks`, permitindo calcular a quantidade de blocos livres.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, `src/allocator.c` e estado Git.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: explicar que contar blocos livres nao basta para alocar; o alocador precisa saber quais enderecos de bloco estao livres, e a free list intrusiva com `GCFreeBlock` fornece isso em O(1).
+- Riscos ou erros procurados: confundir quantidade de blocos livres com identidade/localizacao dos blocos livres, omitir o papel de `live_blocks` na liberacao de arenas vazias, ou deixar de mencionar alternativas como bitmap/varredura linear.
+- Testes executados: revisao de `gc_size_class_push()`, `gc_size_class_refill()`, `gc_size_class_allocate()`, `gc_small_block_release()`, `gc_arena_release_empty()` e `gc_size_class_remove_arena_blocks()`; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: confirmado que `GCFreeBlock` e necessario para encadear blocos livres concretos, enquanto `GCArena.live_blocks` serve para contabilizar blocos vivos e detectar arena vazia.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: explicar o fluxo de alocacao pequena e liberacao de arena vazia com um exemplo numerico.
+
+## 2026-06-28 15:29 - Significado de edges no visualizador
+
+- Prompt/objetivo: explicar o significado de `edge0` e `edge1` no visualizador do garbage collector mostrado por terminal.
+- Fase do PLAN.md: pos-entrega final; explicacao do core do projeto para estudo/defesa.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `EXPLAIN.md`, imagem enviada pelo usuario, `examples/gc_visualizer.c` e estado Git.
+- Alteracoes realizadas: adicionada explicacao em `EXPLAIN.md`; registrada esta entrada no diario; nenhuma alteracao de codigo foi feita.
+- Decisoes e justificativas: explicar `edge0`/`edge1` como campos de referencia do objeto simulado (`Object.edge[]`) e nao como arestas da arvore de intervalos.
+- Riscos ou erros procurados: confundir edges do grafo de objetos com edges/filhos da AVL, ou afirmar que uma referencia saindo de objeto lixo preserva o alvo sem que a origem seja alcancavel.
+- Testes executados: revisao de `Object.edge`, impressao da tabela de objetos e eventos `link` em `examples/gc_visualizer.c`; nenhum teste de codigo foi necessario porque o pedido foi explicativo.
+- Resultados: confirmado que `edge0` e `edge1` indicam os dois ponteiros de cada objeto para outros objetos da simulacao, usados para demonstrar propagacao de alcancabilidade.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: nenhuma pendencia imediata.

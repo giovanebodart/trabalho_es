@@ -1,7 +1,10 @@
 #include "roots.h"
-
 #include <stdlib.h>
 
+/*
+Em ambiente reais as roots são geradas/usadas pela aplicação para encotrar seus objetos dentro do heap
+O GC tbm usa essas raizes como ponto de partida para encontrar objetos 
+*/ 
 static GCRoot *gc_roots_find(GCRoot *roots, void **location)
 {
     while (roots != NULL) {

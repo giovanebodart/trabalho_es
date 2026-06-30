@@ -33,9 +33,8 @@ GCStackDirection gc_stack_direction(void)
 }
 
 /*
- * Conservative scanning intentionally crosses padding between C objects.
- * AddressSanitizer poisons that padding, although it remains inside the
- * readable stack mapping. Bounds and arithmetic stay instrumented elsewhere.
+Em ambiente reais os endereços da pilha são usadas pela aplicação para encotrar seus objetos 
+O GC tbm usa esses endereços para encontrar objetos 
  */
 GC_NO_ASAN GCStackScanResult gc_stack_scan_region(
     uintptr_t begin,

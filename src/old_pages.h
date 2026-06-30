@@ -12,13 +12,20 @@
 #define GC_OLD_PAGES_HAS_FEATURE(feature) 0
 #endif
 
+
 #if defined(__SANITIZE_ADDRESS__) \
-    || GC_OLD_PAGES_HAS_FEATURE(address_sanitizer)
+|| GC_OLD_PAGES_HAS_FEATURE(address_sanitizer)
 #define GC_OLD_PAGES_PROTECTION_SUPPORTED 0
 #else
 #define GC_OLD_PAGES_PROTECTION_SUPPORTED 1
 #endif
 
+/*
+Define se o GC terá proteção de memoria ou não
+É importante não ter isso quando se roda testes ASan, pois o ASan já trabalha com proteção de memoria
+Caso houvesse dois mecanismo de proteção rodando no mesmo build, isso poderia gerar comportanmentos estranhos. 
+Dificultando a eficacia do teste 
+*/
 typedef enum {
     GC_OLD_PAGE_OK = 0,
     GC_OLD_PAGE_INVALID,

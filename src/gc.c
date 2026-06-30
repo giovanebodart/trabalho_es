@@ -24,24 +24,24 @@
 
 typedef struct {
     bool initialized;
-    DWORD owner_thread_id;
+    DWORD owner_thread_id; //Guarda o ID thread que iniciou o GC
     PVOID barrier_handler;
-    uintptr_t stack_low;
-    uintptr_t stack_high;
+    uintptr_t stack_low; //Limite inferior de endereço da call stack
+    uintptr_t stack_high; //Limite superior de endereço da call stack
     size_t page_size;
-    size_t memory_limit;
-    size_t promotion_threshold;
-    size_t major_collection_interval;
-    size_t minor_collections_since_major;
-    size_t collection_request_count;
-    size_t allocation_count;
-    size_t root_count;
-    GCAllocation *allocations;
-    IntervalNode *allocation_tree;
-    GCOldPage *old_pages;
-    GCRoot *roots;
-    GCStats stats;
-    GCStatus status;
+    size_t memory_limit; //Limite de memória para considerar pressão de memória pelo GC
+    size_t promotion_threshold; //Usado pelo GC geracional, limite de sobrevivencias antes de um objeto ser promovido à gereção antiga
+    size_t major_collection_interval; //Limite de depois de quantas coletas menores feitas deve ocorrer uma coleta maior
+    size_t minor_collections_since_major; 
+    size_t collection_request_count; //Conta quantas vezes teve pressão de memoria pedidno coleta
+    size_t allocation_count; //Coonta quantos objetos foram registrados pelo GC até ent
+    size_t root_count; //Raizes explicitas
+    GCAllocation *allocations; //Metadados de objetos gerenciados pelo GC
+    IntervalNode *allocation_tree; //Raiz da arvore, usado para verifica se um objeto aponta para um intervalo da arvore
+    GCOldPage *old_pages; 
+    GCRoot *roots; 
+    GCStats stats; //Métricas do uso do GC
+    GCStatus status; //Status atual do GC
 } GCState;
 
 static GCState gc_state = {
@@ -71,11 +71,18 @@ _Static_assert(sizeof(uintptr_t) == 8,
 _Static_assert(offsetof(GCAllocation, interval) == 0,
                "the interval node must be the first allocation field");
 
+/*
+Essa função verifica se a thread que está executando o gc.c é a mesma que iniciou o GC
+Se o ID da thread for diferente, é rejeitado 
+*/
 static bool gc_is_owner_thread(void)
 {
     return gc_state.owner_thread_id == GetCurrentThreadId();
 }
 
+/*
+São funções que geram somatorios de metricas de tamanho e tempo, em ticks, de alguma grandeza 
+*/
 static void gc_add_size_metric(size_t *total, size_t value)
 {
     *total = *total > SIZE_MAX - value ? SIZE_MAX : *total + value;
@@ -97,14 +104,19 @@ static void gc_update_resident_memory(void)
     }
 }
 
+/*
+Essa função captura erros que são lançados Pelo Windows quando há tentativas de escritas em paginas antigas protegidas pelo GC 
+Uma pagina antiga (objeto) pode sofrer uma tentativa de escrita quando está protegido 
+Essa tentativa de escrita pode ser uma referenciação de um objeto antigo a um objeto novo e o GC libera a escrita nessa pagina 
+*/
 #if GC_OLD_PAGES_PROTECTION_SUPPORTED
-static LONG CALLBACK gc_write_barrier_handler(
-    EXCEPTION_POINTERS *exception_info)
+static LONG CALLBACK gc_write_barrier_handler(EXCEPTION_POINTERS *exception_info)
 {
     EXCEPTION_RECORD *record;
 
     if (exception_info == NULL) {
         return EXCEPTION_CONTINUE_SEARCH;
+        //Exceção que diz que o erro não pertence ao GC, quase um throws em assinatura de função em Java
     }
     record = exception_info->ExceptionRecord;
     if (record == NULL
@@ -113,6 +125,10 @@ static LONG CALLBACK gc_write_barrier_handler(
         || record->ExceptionInformation[0] != (ULONG_PTR)1) {
         return EXCEPTION_CONTINUE_SEARCH;
     }
+    /*
+    Descobre se o endereço que causou a exceção pertence a uma pagina antiga protegida pelo GC
+    Se sim, a pagina é marcada como suja e deve ser examinada pelo GC na proxima coleta menor
+    */
     if (!gc_old_pages_unprotect_for_write(
             gc_state.old_pages,
             (const void *)record->ExceptionInformation[1])) {
@@ -122,11 +138,15 @@ static LONG CALLBACK gc_write_barrier_handler(
 }
 #endif
 
+/*
+Quando houver uma nova alocação que excede o limite atual, essa função é chamada para aumentar o limite 
+*/
 static size_t gc_grow_memory_limit(size_t required)
 {
     size_t limit = gc_state.memory_limit;
 
     while (limit < required) {
+        //Verificação para não estourar o limite de size_t 
         if (limit > SIZE_MAX / (size_t)2) {
             return required;
         }
@@ -148,8 +168,7 @@ static bool gc_should_collect_major(void)
            >= gc_state.major_collection_interval;
 }
 
-static bool gc_prepare_memory_pressure(size_t reserved,
-                                       size_t *next_limit)
+static bool gc_prepare_memory_pressure(size_t reserved, size_t *next_limit)
 {
     size_t required;
 
@@ -160,6 +179,10 @@ static bool gc_prepare_memory_pressure(size_t reserved,
 
     required = gc_state.stats.bytes_reserved + reserved;
     *next_limit = gc_state.memory_limit;
+    /*
+    Se o tamanho da requisição da alocação exceder o limite, é preparada uma coleta
+    Se não, a alocação pode prosseguir normalmente 
+    */    
     if (required <= gc_state.memory_limit) {
         return true;
     }
@@ -168,7 +191,10 @@ static bool gc_prepare_memory_pressure(size_t reserved,
     *next_limit = gc_grow_memory_limit(required);
     return true;
 }
-
+/*
+Quando o GC falha no meio de uma coleta por algum motivo, essa função é chamada para desmarcar todos os objetos marcados 
+Usado quando houve erros
+*/
 static void gc_clear_marks(void)
 {
     GCAllocation *allocation = gc_state.allocations;
@@ -184,6 +210,7 @@ static bool gc_validate_integrity(void)
     if (!gc_allocator_validate_all(gc_state.allocations)) {
         return false;
     }
+//Só valida a arvore se for build NDEBUG
 #ifndef NDEBUG
     if (!interval_tree_validate(gc_state.allocation_tree)) {
         return false;
@@ -191,7 +218,7 @@ static bool gc_validate_integrity(void)
 #endif
     return true;
 }
-
+//Raizes explicitas
 static GCStatus gc_mark_explicit_roots(GCMarkQueue *queue)
 {
     GCRoot *root = gc_state.roots;
@@ -216,7 +243,7 @@ static GCStatus gc_mark_explicit_roots(GCMarkQueue *queue)
     }
     return GC_STATUS_OK;
 }
-
+//Raizes dos registradores da CPU
 static GCStatus gc_mark_register_roots(GCMarkQueue *queue)
 {
     GCRegisterScanResult result;
@@ -234,7 +261,7 @@ static GCStatus gc_mark_register_roots(GCMarkQueue *queue)
     }
     return GC_STATUS_OK;
 }
-
+//Raizes de pilhas de chamada de função
 static GCStatus gc_mark_stack_roots(GCMarkQueue *queue)
 {
     GCStackScanResult result;
@@ -254,6 +281,7 @@ static GCStatus gc_mark_stack_roots(GCMarkQueue *queue)
     return GC_STATUS_OK;
 }
 
+//Centraliza as marcações das raizes
 static GCStatus gc_mark_roots(GCMarkQueue *queue)
 {
     GCStatus status = gc_mark_explicit_roots(queue);
@@ -267,6 +295,9 @@ static GCStatus gc_mark_roots(GCMarkQueue *queue)
     return status;
 }
 
+/*
+Diz se uma pagina antiga deve ser examinada na proxima coleta
+*/
 static bool gc_old_allocation_needs_minor_scan(
     const GCAllocation *allocation)
 {
@@ -286,14 +317,16 @@ static bool gc_old_allocation_needs_minor_scan(
     return page == NULL || page->dirty;
 }
 
+/*
+Garante que objetos novos que são referenciados por objetos antigos sejam coletados em uma coleta menor
+*/
 static GCStatus gc_mark_remembered_old_roots(GCMarkQueue *queue)
 {
     GCAllocation *allocation = gc_state.allocations;
 
     while (allocation != NULL) {
         if (gc_old_allocation_needs_minor_scan(allocation)) {
-            GCMarkQueueResult result = gc_mark_queue_push(queue,
-                                                          allocation);
+            GCMarkQueueResult result = gc_mark_queue_push(queue, allocation);
 
             if (result == GC_MARK_QUEUE_OUT_OF_MEMORY) {
                 return GC_STATUS_OUT_OF_MEMORY;
@@ -307,8 +340,7 @@ static GCStatus gc_mark_remembered_old_roots(GCMarkQueue *queue)
     return GC_STATUS_OK;
 }
 
-static GCStatus gc_process_mark_queue(GCMarkQueue *queue,
-                                      size_t *examined)
+static GCStatus gc_process_mark_queue(GCMarkQueue *queue, size_t *examined)
 {
     GCAllocation *allocation;
 
@@ -320,8 +352,7 @@ static GCStatus gc_process_mark_queue(GCMarkQueue *queue,
             return GC_STATUS_SIZE_OVERFLOW;
         }
         ++*examined;
-        result = gc_mark_scan_object(allocation,
-                                     gc_state.allocation_tree, queue);
+        result = gc_mark_scan_object(allocation, gc_state.allocation_tree, queue);
         if (result == GC_MARK_SCAN_OUT_OF_MEMORY) {
             return GC_STATUS_OUT_OF_MEMORY;
         }
@@ -332,10 +363,12 @@ static GCStatus gc_process_mark_queue(GCMarkQueue *queue,
     return GC_STATUS_OK;
 }
 
+/*
+Refaz a lista de paginas antigas, exclui obsoletas e cria novas (caso objetos novos tenham sido promovidos a antigos)
+*/
 static GCStatus gc_rebuild_old_pages(void)
 {
-    GCOldPageResult result = gc_old_pages_rebuild(&gc_state.old_pages,
-                                                  gc_state.allocations);
+    GCOldPageResult result = gc_old_pages_rebuild(&gc_state.old_pages, gc_state.allocations);
 
     if (result == GC_OLD_PAGE_OUT_OF_MEMORY) {
         return GC_STATUS_OUT_OF_MEMORY;
@@ -351,6 +384,7 @@ static GCStatus gc_rebuild_old_pages(void)
 
 int gc_init(void)
 {
+    //Longs da API do Windows, guardam endereço inicial e final da pilha
     ULONG_PTR low;
     ULONG_PTR high;
     SYSTEM_INFO system_info;
@@ -391,6 +425,7 @@ int gc_init(void)
 void *gc_malloc(size_t size)
 {
     GCAllocation *allocation;
+    //É a diferença de quantidade de bytes que o usuario pediu e oq de fato foi alocado pelo alocator do GC
     size_t fragmentation;
     size_t next_limit;
     size_t reserved;
@@ -407,7 +442,8 @@ void *gc_malloc(size_t size)
         gc_state.status = GC_STATUS_INVALID_ARGUMENT;
         return NULL;
     }
-    if (!gc_allocator_reservation_size(size, gc_state.page_size, &reserved)
+    //Verifica a existencia de pressão de memoria por qualquer motivo
+    if (!gc_allocator_reservation_size(size, gc_state.page_size, &reserved) //Reserva o tamanho real pedido
         || reserved < size
         || gc_state.stats.bytes_requested > SIZE_MAX - size
         || gc_state.stats.bytes_live > SIZE_MAX - size
@@ -567,7 +603,8 @@ int gc_remove_root(void **root)
 
 void gc_collect(void)
 {
-    LARGE_INTEGER frequency;
+    LARGE_INTEGER frequency; //Conta os ticks por segundo
+    //Métricas de tempo
     LARGE_INTEGER start;
     LARGE_INTEGER mark_start;
     LARGE_INTEGER mark_end;
@@ -686,6 +723,7 @@ void gc_collect(void)
         ++gc_state.minor_collections_since_major;
         gc_state.stats.last_minor_pause_ticks = pause_ticks;
     }
+    //O calculo de metricas de tamanho e tempo foram abstraidas para funções pois elas tem validação de tamanho de tipo
     gc_add_size_metric(&gc_state.stats.tree_searches, tree_searches);
     gc_add_size_metric(&gc_state.stats.tree_comparisons,
                        tree_comparisons);

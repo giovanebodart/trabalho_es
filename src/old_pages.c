@@ -140,7 +140,7 @@ bool gc_old_pages_unprotect_for_write(GCOldPage *pages,
         return false;
     }
 #if GC_OLD_PAGES_PROTECTION_SUPPORTED
-    if (!VirtualProtect(page->base, page->size,
+    if (!VirtualProtect(page->base, page->size,    
                         PAGE_READWRITE, &old_protect)) {
         return false;
     }

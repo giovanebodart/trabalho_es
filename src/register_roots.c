@@ -10,6 +10,11 @@
 #define GC_NOINLINE
 #endif
 
+/*
+Aqui são encontrados endereços provaveis em registradores da CPU
+Qualquer valor provavel presente na arvore de intervalos é tratado como objeto vivo
+Podem ocorrer falsos positivos, mas nunca a morte de um objeto vivo 
+*/
 static GCRegisterScanResult gc_register_roots_push(uintptr_t candidate,
                                                    IntervalNode *tree,
                                                    GCMarkQueue *queue)
