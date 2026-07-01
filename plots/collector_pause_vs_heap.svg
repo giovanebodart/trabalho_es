@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="540" viewBox="0 0 900 540">
+<style>
+text{font-family:Segoe UI,Arial,sans-serif;font-size:13px;fill:#172033}
+.title{font-size:22px;font-weight:700}
+.axis{stroke:#172033;stroke-width:1.5}
+.grid{stroke:#d8dee9;stroke-width:1}
+.legend{font-size:12px}
+</style>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="450" y="30" text-anchor="middle" class="title">Pausa por tamanho do heap</text>
+<line x1="92" y1="462" x2="864" y2="462" class="axis"/>
+<line x1="92" y1="54" x2="92" y2="462" class="axis"/>
+<line x1="92.00" y1="54" x2="92.00" y2="462" class="grid"/>
+<line x1="92" y1="54.00" x2="864" y2="54.00" class="grid"/>
+<text x="92.00" y="486" text-anchor="middle">64.0k</text>
+<text x="82" y="58.00" text-anchor="end">305.24</text>
+<line x1="246.40" y1="54" x2="246.40" y2="462" class="grid"/>
+<line x1="92" y1="135.60" x2="864" y2="135.60" class="grid"/>
+<text x="246.40" y="486" text-anchor="middle">140.0k</text>
+<text x="82" y="139.60" text-anchor="end">244.19</text>
+<line x1="400.80" y1="54" x2="400.80" y2="462" class="grid"/>
+<line x1="92" y1="217.20" x2="864" y2="217.20" class="grid"/>
+<text x="400.80" y="486" text-anchor="middle">306.0k</text>
+<text x="82" y="221.20" text-anchor="end">183.15</text>
+<line x1="555.20" y1="54" x2="555.20" y2="462" class="grid"/>
+<line x1="92" y1="298.80" x2="864" y2="298.80" class="grid"/>
+<text x="555.20" y="486" text-anchor="middle">669.2k</text>
+<text x="82" y="302.80" text-anchor="end">122.10</text>
+<line x1="709.60" y1="54" x2="709.60" y2="462" class="grid"/>
+<line x1="92" y1="380.40" x2="864" y2="380.40" class="grid"/>
+<text x="709.60" y="486" text-anchor="middle">1.5M</text>
+<text x="82" y="384.40" text-anchor="end">61.05</text>
+<line x1="864.00" y1="54" x2="864.00" y2="462" class="grid"/>
+<line x1="92" y1="462.00" x2="864" y2="462.00" class="grid"/>
+<text x="864.00" y="486" text-anchor="middle">3.2M</text>
+<text x="82" y="466.00" text-anchor="end">0</text>
+<text x="450" y="520" text-anchor="middle">heap_bytes (escala log10)</text>
+<text transform="translate(20 270) rotate(-90)" text-anchor="middle">mean_pause_ms</text>
+<polyline fill="none" stroke="#2563eb" stroke-width="2.5" points="92.00,456.67 546.39,426.01 864.00,217.12"/>
+<circle cx="92.00" cy="456.67" r="4" fill="#2563eb"/>
+<circle cx="546.39" cy="426.01" r="4" fill="#2563eb"/>
+<circle cx="864.00" cy="217.12" r="4" fill="#2563eb"/>
+<rect x="696" y="62" width="12" height="12" fill="#2563eb"/>
+<text x="714" y="72" class="legend">mark_sweep</text>
+<polyline fill="none" stroke="#dc2626" stroke-width="2.5" points="92.00,455.68 546.39,398.21 864.00,54.00"/>
+<circle cx="92.00" cy="455.68" r="4" fill="#dc2626"/>
+<circle cx="546.39" cy="398.21" r="4" fill="#dc2626"/>
+<circle cx="864.00" cy="54.00" r="4" fill="#dc2626"/>
+<rect x="696" y="82" width="12" height="12" fill="#dc2626"/>
+<text x="714" y="92" class="legend">generational</text>
+</svg>

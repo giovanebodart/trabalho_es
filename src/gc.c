@@ -24,21 +24,21 @@
 
 typedef struct {
     bool initialized;
-    DWORD owner_thread_id; //Guarda o ID thread que iniciou o GC
+    DWORD owner_thread_id;
     PVOID barrier_handler;
-    uintptr_t stack_low; //Limite inferior de endereço da call stack
-    uintptr_t stack_high; //Limite superior de endereço da call stack
+    uintptr_t stack_low; 
+    uintptr_t stack_high; 
     size_t page_size;
-    size_t memory_limit; //Limite de memória para considerar pressão de memória pelo GC
+    size_t memory_limit; 
     size_t promotion_threshold; //Usado pelo GC geracional, limite de sobrevivencias antes de um objeto ser promovido à gereção antiga
-    size_t major_collection_interval; //Limite de depois de quantas coletas menores feitas deve ocorrer uma coleta maior
+    size_t major_collection_interval; 
     size_t minor_collections_since_major; 
     size_t collection_request_count; //Conta quantas vezes teve pressão de memoria pedidno coleta
-    size_t allocation_count; //Coonta quantos objetos foram registrados pelo GC até ent
-    size_t root_count; //Raizes explicitas
-    GCAllocation *allocations; //Metadados de objetos gerenciados pelo GC
-    IntervalNode *allocation_tree; //Raiz da arvore, usado para verifica se um objeto aponta para um intervalo da arvore
-    GCOldPage *old_pages; 
+    size_t allocation_count; 
+    size_t root_count; 
+    GCAllocation *allocations; 
+    IntervalNode *allocation_tree; 
+    GCOldPage *old_pages;
     GCRoot *roots; 
     GCStats stats; //Métricas do uso do GC
     GCStatus status; //Status atual do GC

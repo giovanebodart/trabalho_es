@@ -103,6 +103,7 @@ edicao manual de valores. Os arquivos usados neste relatorio sao:
 - `plots/pause_vs_heap.svg`;
 - `plots/memory_vs_progress.svg`;
 - `plots/tree_cost_vs_objects.svg`;
+- `plots/collector_pause_vs_heap.svg`;
 - `plots/collector_pause_comparison.svg`.
 
 O ambiente validado e Windows 11 x86-64, processo de uma thread, GCC
@@ -168,15 +169,20 @@ evitar busca linear durante a marcacao conservadora.
 
 ### 5.4 Comparacao entre mark-sweep puro e geracional
 
+![Pausa por heap e algoritmo](../plots/collector_pause_vs_heap.svg)
+
+O benchmark `bench_compare_collectors` executa a mesma carga em mark-sweep puro
+e no coletor geracional, com aquecimento e tres repeticoes por escala. O modo
+`--stages` gera pontos crescentes de heap para comparar a pausa media acumulada
+dentro de `gc_collect()`.
+
+| Objetos | Heap reservado | Mark-sweep pausa media | Geracional pausa media |
+|---:|---:|---:|---:|
+| 1.000 | 64.000 | 3,991 ms | 4,727 ms |
+| 10.000 | 640.000 | 26,929 ms | 47,724 ms |
+| 50.000 | 3.200.000 | 183,209 ms | 305,243 ms |
+
 ![Comparacao dos coletores](../plots/collector_pause_comparison.svg)
-
-O benchmark `bench_compare_collectors` executa a mesma carga com 50.000 objetos,
-aquecimento e tres repeticoes.
-
-| Algoritmo | Media pausa | Mediana pausa | Dispersao pausa | Menores | Maiores |
-|---|---:|---:|---:|---:|---:|
-| mark_sweep | 2.587.211 | 2.701.035 | 417.356 | 0 | 7 |
-| generational | 3.558.598 | 3.513.272 | 273.674 | 6 | 1 |
 
 Nesta carga especifica, a versao geracional teve pausa media maior que o modo
 mark-sweep puro. Isso nao invalida a abordagem geracional: mostra que, com a

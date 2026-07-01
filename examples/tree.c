@@ -5,7 +5,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if defined (__GNUC__) 
 #define GC_EXAMPLE_NOINLINE __attribute__((noinline))
+#else
+#define GC_EXAMPLE_NOINLINE
+#endif
 
 typedef struct TreeNode {
     struct TreeNode *left;

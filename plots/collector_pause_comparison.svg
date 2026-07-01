@@ -11,23 +11,23 @@ text{font-family:Segoe UI,Arial,sans-serif;font-size:13px;fill:#172033}
 <line x1="92" y1="462" x2="864" y2="462" class="axis"/>
 <line x1="92" y1="54" x2="92" y2="462" class="axis"/>
 <line x1="92" y1="54.00" x2="864" y2="54.00" class="grid"/>
-<text x="82" y="58.00" text-anchor="end">3.6M</text>
+<text x="82" y="58.00" text-anchor="end">305.24</text>
 <line x1="92" y1="135.60" x2="864" y2="135.60" class="grid"/>
-<text x="82" y="139.60" text-anchor="end">2.8M</text>
+<text x="82" y="139.60" text-anchor="end">244.19</text>
 <line x1="92" y1="217.20" x2="864" y2="217.20" class="grid"/>
-<text x="82" y="221.20" text-anchor="end">2.1M</text>
+<text x="82" y="221.20" text-anchor="end">183.15</text>
 <line x1="92" y1="298.80" x2="864" y2="298.80" class="grid"/>
-<text x="82" y="302.80" text-anchor="end">1.4M</text>
+<text x="82" y="302.80" text-anchor="end">122.10</text>
 <line x1="92" y1="380.40" x2="864" y2="380.40" class="grid"/>
-<text x="82" y="384.40" text-anchor="end">711.7k</text>
+<text x="82" y="384.40" text-anchor="end">61.05</text>
 <line x1="92" y1="462.00" x2="864" y2="462.00" class="grid"/>
 <text x="82" y="466.00" text-anchor="end">0</text>
 <text x="450" y="520" text-anchor="middle">algoritmo</text>
-<text transform="translate(20 270) rotate(-90)" text-anchor="middle">mean_pause_ticks</text>
-<rect x="188.50" y="165.37" width="193.00" height="296.63" fill="#2563eb"/>
+<text transform="translate(20 270) rotate(-90)" text-anchor="middle">mean_pause_ms</text>
+<rect x="188.50" y="217.12" width="193.00" height="244.88" fill="#2563eb"/>
 <text x="285.00" y="508" text-anchor="middle">mark_sweep</text>
-<text x="285.00" y="157.37" text-anchor="middle">2.6M</text>
+<text x="285.00" y="209.12" text-anchor="middle">183.21</text>
 <rect x="574.50" y="54.00" width="193.00" height="408.00" fill="#dc2626"/>
 <text x="671.00" y="508" text-anchor="middle">generational</text>
-<text x="671.00" y="46.00" text-anchor="middle">3.6M</text>
+<text x="671.00" y="46.00" text-anchor="middle">305.24</text>
 </svg>

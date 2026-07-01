@@ -147,7 +147,8 @@ Os benchmarks atuais sao:
   testar sobrevivencia e recuperacao;
 - `bench_tree`: mede insercao, busca e remocao da arvore com sementes fixas;
 - `bench_compare_collectors`: compara a mesma carga em mark-sweep puro e
-  coletor geracional.
+  coletor geracional; com `--stages`, emite multiplos tamanhos de heap,
+  `heap_bytes` e `mean_pause_ms` para o grafico de pausa por heap.
 
 O alvo `plots` gera CSVs em `data/` e SVGs em `plots/` usando
 `scripts/generate_plots.py`. Os valores dos graficos saem dos executaveis de

@@ -16,10 +16,7 @@ struct IntervalNode {
     IntervalNode *right;
 };
 
-/*
- * Initializes a node for the half-open interval [start, end).
- * Empty and reversed intervals are rejected.
- */
+//Intervalos vazios ou já reservados são rejeitados
 bool interval_node_init(IntervalNode *node, uintptr_t start, uintptr_t end);
 
 int interval_node_height(const IntervalNode *node);
@@ -37,7 +34,6 @@ bool interval_tree_remove(IntervalNode **root,
                           uintptr_t start,
                           IntervalNode **removed);
 IntervalNode *interval_tree_find(IntervalNode *root, uintptr_t address);
-/* comparisons receives the number of interval nodes examined. */
 IntervalNode *interval_tree_find_counted(IntervalNode *root,
                                          uintptr_t address,
                                          size_t *comparisons);

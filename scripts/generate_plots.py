@@ -57,6 +57,38 @@ def grouped_mean(rows: list[dict[str, str]], key: str,
     return [(item, mean(groups[item])) for item in sorted(groups)]
 
 
+def grouped_series(rows: list[dict[str, str]], label_key: str, x_key: str,
+                   y_key: str) -> list[tuple[str, list[tuple[float, float]]]]:
+    labels: list[str] = []
+    groups: dict[str, dict[float, list[float]]] = defaultdict(
+        lambda: defaultdict(list)
+    )
+    for row in rows:
+        label = row[label_key]
+        if label not in labels:
+            labels.append(label)
+        groups[label][as_float(row, x_key)].append(as_float(row, y_key))
+    return [
+        (label, [(x_value, mean(groups[label][x_value]))
+                 for x_value in sorted(groups[label])])
+        for label in labels
+    ]
+
+
+def largest_x_rows(rows: list[dict[str, str]], label_key: str,
+                   x_key: str) -> list[dict[str, str]]:
+    best: dict[str, dict[str, str]] = {}
+    order: list[str] = []
+    for row in rows:
+        label = row[label_key]
+        if label not in order:
+            order.append(label)
+        if label not in best or as_float(row, x_key) > as_float(best[label],
+                                                                x_key):
+            best[label] = row
+    return [best[label] for label in order]
+
+
 def extent(series: list[tuple[str, list[tuple[float, float]]]],
            log_x: bool) -> tuple[float, float, float, float]:
     xs: list[float] = []
@@ -262,12 +294,21 @@ def main() -> None:
         ],
         log_x=True,
     )
+    write_line_plot(
+        PLOTS / "collector_pause_vs_heap.svg",
+        "Pausa por tamanho do heap",
+        "heap_bytes (escala log10)",
+        "mean_pause_ms",
+        grouped_series(collectors, "algorithm", "heap_bytes",
+                       "mean_pause_ms"),
+        log_x=True,
+    )
     write_bar_plot(
         PLOTS / "collector_pause_comparison.svg",
         "Pausa media por algoritmo",
-        "mean_pause_ticks",
-        [(row["algorithm"], as_float(row, "mean_pause_ticks"))
-         for row in collectors],
+        "mean_pause_ms",
+        [(row["algorithm"], as_float(row, "mean_pause_ms"))
+         for row in largest_x_rows(collectors, "algorithm", "heap_bytes")],
     )
     for path in sorted(PLOTS.glob("*.svg")):
         print(path.relative_to(ROOT))

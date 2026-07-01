@@ -11,6 +11,7 @@
 #include <windows.h>
 enum {
     OBJECT_COUNT = 10,
+    INITIAL_OBJECT_COUNT = 7,
     ROOT_COUNT = 2,
     EDGE_COUNT = 2,
     EVENT_COUNT = 9
@@ -24,6 +25,12 @@ typedef struct Object {
     struct Object *edge[EDGE_COUNT];
 } Object;
 
+typedef enum {
+    SCENARIO_LIST = 0,
+    SCENARIO_TREE,
+    SCENARIO_CYCLIC
+} ScenarioKind;
+
 typedef struct {
     size_t step;
     char phase[12];
@@ -34,6 +41,7 @@ typedef struct {
     Object *object[OBJECT_COUNT];
     void *root[ROOT_COUNT];
     bool active[OBJECT_COUNT];
+    ScenarioKind scenario;
     Event events[EVENT_COUNT];
     size_t retained_garbage;
     size_t event_count;
@@ -41,6 +49,17 @@ typedef struct {
     bool valid;
 } Demo;
 typedef void (*Action)(Demo *, char *, size_t);
+static const char *scenario_name(ScenarioKind scenario) {
+    switch (scenario) {
+    case SCENARIO_LIST:
+        return "lista";
+    case SCENARIO_TREE:
+        return "arvore";
+    case SCENARIO_CYCLIC:
+        return "grafo ciclico";
+    }
+    return "desconhecido";
+}
 static GC_VIS_NOINLINE void scrub_stack_roots(void) {
     volatile uintptr_t noise[256];
     size_t index;
@@ -145,6 +164,7 @@ static void render(const Demo *demo, const char *message) {
                    / (double)stats.performance_frequency;
     }
     puts("=== Visualizador do garbage collector mark-sweep ===");
+    printf("Cenario: %s\n", scenario_name(demo->scenario));
     puts("Como ler:");
     puts("  [R] raiz direta: esta em uma variavel registrada no GC");
     puts("  [V] vivo: alcancavel por raiz ou por outro objeto vivo");
@@ -186,11 +206,117 @@ static void render(const Demo *demo, const char *message) {
     puts("[2] Alterar raiz ou referencia aleatoria");
     puts("[3] Descartar raiz ou referencia aleatoria");
     puts("[4] Executar coleta menor");
-    puts("[5] Gerar novo grafo aleatorio");
+    puts("[5] Gerar novo exemplo do cenario atual");
     puts("[6] Executar sequencia automatica");
     puts("[0] Sair");
     fputs("\nEscolha uma tecla: ", stdout);
     (void)fflush(stdout);
+}
+static Object *create_object(Demo *demo, size_t slot, char *message,
+                             size_t size) {
+    Object *object;
+    if (slot >= OBJECT_COUNT || demo->active[slot]) {
+        (void)snprintf(message, size, "slot invalido para alocacao");
+        record_event(demo, "erro", "slot invalido para alocacao");
+        return NULL;
+    }
+    object = gc_malloc(sizeof *object);
+    if (object == NULL) {
+        demo->valid = false;
+        (void)snprintf(message, size, "gc_malloc falhou: status %d",
+                       (int)gc_get_status());
+        record_event(demo, "erro", "gc_malloc falhou com status %d",
+                     (int)gc_get_status());
+        return NULL;
+    }
+    object->edge[0] = NULL;
+    object->edge[1] = NULL;
+    demo->object[slot] = object;
+    demo->active[slot] = true;
+    record_event(demo, "alloc", "O%02zu criado por gc_malloc()", slot);
+    return object;
+}
+static bool create_initial_objects(Demo *demo, char *message, size_t size) {
+    size_t index;
+    for (index = 0; index < INITIAL_OBJECT_COUNT; ++index) {
+        if (create_object(demo, index, message, size) == NULL) {
+            return false;
+        }
+    }
+    return true;
+}
+static void build_list_scenario(Demo *demo) {
+    size_t index;
+    demo->root[0] = demo->object[0];
+    demo->root[1] = demo->object[INITIAL_OBJECT_COUNT / (size_t)2];
+    record_event(demo, "root", "R0 -> O00");
+    record_event(demo, "root", "R1 -> O%02zu",
+                 INITIAL_OBJECT_COUNT / (size_t)2);
+    for (index = 0; index + (size_t)1 < INITIAL_OBJECT_COUNT; ++index) {
+        demo->object[index]->edge[0] = demo->object[index + (size_t)1];
+        record_event(demo, "link", "O%02zu.edge0 -> O%02zu",
+                     index, index + (size_t)1);
+    }
+}
+static void build_tree_scenario(Demo *demo) {
+    size_t index;
+    demo->root[0] = demo->object[0];
+    demo->root[1] = demo->object[2];
+    record_event(demo, "root", "R0 -> O00");
+    record_event(demo, "root", "R1 -> O02");
+    for (index = 0; index < INITIAL_OBJECT_COUNT; ++index) {
+        size_t left = index * (size_t)2 + (size_t)1;
+        size_t right = left + (size_t)1;
+        if (left < INITIAL_OBJECT_COUNT) {
+            demo->object[index]->edge[0] = demo->object[left];
+            record_event(demo, "link", "O%02zu.edge0 -> O%02zu",
+                         index, left);
+        }
+        if (right < INITIAL_OBJECT_COUNT) {
+            demo->object[index]->edge[1] = demo->object[right];
+            record_event(demo, "link", "O%02zu.edge1 -> O%02zu",
+                         index, right);
+        }
+    }
+}
+static void build_cyclic_scenario(Demo *demo) {
+    demo->root[0] = demo->object[0];
+    demo->root[1] = demo->object[6];
+    record_event(demo, "root", "R0 -> O00");
+    record_event(demo, "root", "R1 -> O06");
+    demo->object[0]->edge[0] = demo->object[1];
+    demo->object[1]->edge[0] = demo->object[2];
+    demo->object[2]->edge[0] = demo->object[0];
+    demo->object[2]->edge[1] = demo->object[3];
+    demo->object[3]->edge[0] = demo->object[4];
+    demo->object[4]->edge[0] = demo->object[5];
+    demo->object[5]->edge[0] = demo->object[3];
+    demo->object[6]->edge[0] = demo->object[6];
+    record_event(demo, "link", "O00.edge0 -> O01");
+    record_event(demo, "link", "O01.edge0 -> O02");
+    record_event(demo, "link", "O02.edge0 -> O00");
+    record_event(demo, "link", "O02.edge1 -> O03");
+    record_event(demo, "link", "O03.edge0 -> O04");
+    record_event(demo, "link", "O04.edge0 -> O05");
+    record_event(demo, "link", "O05.edge0 -> O03");
+    record_event(demo, "link", "O06.edge0 -> O06");
+}
+static bool build_scenario(Demo *demo, char *message, size_t size) {
+    if (!create_initial_objects(demo, message, size)) {
+        return false;
+    }
+    if (demo->scenario == SCENARIO_LIST) {
+        build_list_scenario(demo);
+    } else if (demo->scenario == SCENARIO_TREE) {
+        build_tree_scenario(demo);
+    } else {
+        build_cyclic_scenario(demo);
+    }
+    (void)snprintf(message, size, "exemplo de %s criado",
+                   scenario_name(demo->scenario));
+    record_event(demo, "reset", "exemplo de %s pronto para explorar",
+                 scenario_name(demo->scenario));
+    return true;
 }
 static void grow_random(Demo *demo, char *message, size_t size) {
     size_t slot = choose_object(demo, false);
@@ -201,19 +327,10 @@ static void grow_random(Demo *demo, char *message, size_t size) {
         record_event(demo, "alloc", "falhou: todos os slots estao ativos");
         return;
     }
-    object = gc_malloc(sizeof *object);
+    object = create_object(demo, slot, message, size);
     if (object == NULL) {
-        demo->valid = false;
-        (void)snprintf(message, size, "gc_malloc falhou: status %d",
-                       (int)gc_get_status());
-        record_event(demo, "erro", "gc_malloc falhou com status %d",
-                     (int)gc_get_status());
         return;
     }
-    object->edge[0] = NULL;
-    object->edge[1] = NULL;
-    demo->object[slot] = object;
-    demo->active[slot] = true;
     if (source != OBJECT_COUNT && rand() % 2 == 0) {
         size_t edge = (size_t)rand() % EDGE_COUNT;
         demo->object[source]->edge[edge] = object;
@@ -226,7 +343,6 @@ static void grow_random(Demo *demo, char *message, size_t size) {
         record_event(demo, "root", "R%zu -> O%02zu", root, slot);
     }
     (void)snprintf(message, size, "O%02zu alocado e integrado", slot);
-    record_event(demo, "alloc", "O%02zu criado por gc_malloc()", slot);
 }
 static void mutate_random(Demo *demo, char *message, size_t size) {
     size_t source = choose_object(demo, true);
@@ -318,12 +434,14 @@ static void collect_now(Demo *demo, char *message, size_t size) {
                  "marcou >=%zu, liberou %zu, retidos %zu",
                  marked, collected, demo->retained_garbage);
 }
-static bool reset_demo(Demo *demo, char *message, size_t size) {
+static bool reset_demo(Demo *demo, ScenarioKind scenario, char *message,
+                       size_t size) {
     size_t index;
     if (gc_is_initialized()) {
         gc_shutdown();
     }
     memset(demo, 0, sizeof *demo);
+    demo->scenario = scenario;
     demo->valid = true;
     if (gc_init() != GC_SUCCESS) {
         return false;
@@ -335,15 +453,8 @@ static bool reset_demo(Demo *demo, char *message, size_t size) {
     }
     record_event(demo, "reset", "GC reiniciado e %d raizes registradas",
                  ROOT_COUNT);
-    for (index = 0; index < (size_t)7; ++index) {
-        grow_random(demo, message, size);
-    }
-    for (index = 0; index < (size_t)8; ++index) {
-        mutate_random(demo, message, size);
-    }
-    (void)snprintf(message, size, "novo grafo aleatorio criado");
-    record_event(demo, "reset", "grafo aleatorio pronto para explorar");
-    return demo->valid;
+    (void)index;
+    return build_scenario(demo, message, size) && demo->valid;
 }
 static bool run_demo(Demo *demo) {
     static Action actions[] = {
@@ -360,10 +471,53 @@ static bool run_demo(Demo *demo) {
     putchar('\n');
     return demo->valid;
 }
+static bool run_all_demos(Demo *demo, char *message, size_t size) {
+    static const ScenarioKind scenarios[] = {
+        SCENARIO_LIST, SCENARIO_TREE, SCENARIO_CYCLIC
+    };
+    size_t index;
+    for (index = 0; index < sizeof scenarios / sizeof scenarios[0]; ++index) {
+        if (!reset_demo(demo, scenarios[index], message, size)
+            || !run_demo(demo)) {
+            return false;
+        }
+    }
+    return true;
+}
+static bool choose_initial_scenario(ScenarioKind *scenario) {
+    int key;
+    for (;;) {
+        (void)system("cls");
+        puts("=== Visualizador do garbage collector ===\n");
+        puts("[1] Exemplo com lista");
+        puts("[2] Exemplo com arvore");
+        puts("[3] Exemplo com grafo ciclico");
+        puts("[0] Sair do visualizador");
+        fputs("\nEscolha um exemplo: ", stdout);
+        (void)fflush(stdout);
+        key = _getch();
+        if (key == '0') {
+            return false;
+        }
+        if (key == '1') {
+            *scenario = SCENARIO_LIST;
+            return true;
+        }
+        if (key == '2') {
+            *scenario = SCENARIO_TREE;
+            return true;
+        }
+        if (key == '3') {
+            *scenario = SCENARIO_CYCLIC;
+            return true;
+        }
+    }
+}
 int main(int argc, char **argv) {
     static Action actions[] = {
         grow_random, mutate_random, discard_random, collect_now
     };
+    ScenarioKind scenario = SCENARIO_CYCLIC;
     Demo *demo;
     char message[128] = "pronto";
     int key;
@@ -372,15 +526,21 @@ int main(int argc, char **argv) {
     if (demo == NULL) {
         return EXIT_FAILURE;
     }
-    if (!reset_demo(demo, message, sizeof message)) {
-        free(demo);
-        return EXIT_FAILURE;
-    }
     if (argc == 2 && strcmp(argv[1], "--demo") == 0) {
-        int result = run_demo(demo) ? EXIT_SUCCESS : EXIT_FAILURE;
+        int result = run_all_demos(demo, message, sizeof message)
+                     ? EXIT_SUCCESS
+                     : EXIT_FAILURE;
         gc_shutdown();
         free(demo);
         return result;
+    }
+    if (!choose_initial_scenario(&scenario)) {
+        free(demo);
+        return EXIT_SUCCESS;
+    }
+    if (!reset_demo(demo, scenario, message, sizeof message)) {
+        free(demo);
+        return EXIT_FAILURE;
     }
     for (;;) {
         (void)system("cls");
@@ -392,7 +552,9 @@ int main(int argc, char **argv) {
         if (key >= '1' && key <= '4') {
             actions[key - '1'](demo, message, sizeof message);
         } else if (key == '5') {
-            demo->valid = reset_demo(demo, message, sizeof message);
+            scenario = demo->scenario;
+            demo->valid = reset_demo(demo, scenario, message,
+                                     sizeof message);
         } else if (key == '6') {
             demo->valid = run_demo(demo);
             fputs("Pressione uma tecla para voltar ao menu...", stdout);

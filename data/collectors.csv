@@ -1,3 +1,7 @@
-algorithm,objects,repetitions,mean_pause_ticks,median_pause_ticks,pause_range_ticks,mean_elapsed_ticks,median_elapsed_ticks,elapsed_range_ticks,collected_bytes,minor_collections,major_collections,promoted_objects
-mark_sweep,50000,3,2587211,2701035,417356,2905880,3027042,431773,1200000,0,7,49985
-generational,50000,3,3558598,3513272,273674,3889966,3824114,221143,1200000,6,1,49985
+algorithm,objects,heap_bytes,repetitions,mean_pause_ticks,mean_pause_ms,median_pause_ticks,pause_range_ticks,mean_elapsed_ticks,mean_elapsed_ms,median_elapsed_ticks,elapsed_range_ticks,collected_bytes,minor_collections,major_collections,promoted_objects
+mark_sweep,1000,64000,3,39910,3.991,39687,30720,50029,5.003,49707,35980,24000,0,7,961
+generational,1000,64000,3,47268,4.727,43560,17062,51147,5.115,47300,16555,24000,6,1,961
+mark_sweep,10000,640000,3,269290,26.929,263747,21041,305310,30.531,301606,22477,240000,0,7,9985
+generational,10000,640000,3,477235,47.724,476148,18591,525901,52.590,530022,17282,240000,6,1,9985
+mark_sweep,50000,3200000,3,1832092,183.209,1903087,217502,2098410,209.841,2161785,276661,1200000,0,7,49985
+generational,50000,3200000,3,3052426,305.243,3098808,476968,3327414,332.741,3341507,436783,1200000,6,1,49985

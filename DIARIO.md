@@ -1510,3 +1510,68 @@ pendências do desenvolvimento. Entradas anteriores não devem ser reescritas.
 - Resultados: confirmado que `edge0` e `edge1` indicam os dois ponteiros de cada objeto para outros objetos da simulacao, usados para demonstrar propagacao de alcancabilidade.
 - Erros da IA ou sugestoes rejeitadas: nenhum identificado.
 - Pendencias e proximo passo: nenhuma pendencia imediata.
+
+## 2026-06-30 15:45 - Centralizacao de todos os headers em include
+
+- Prompt/objetivo: mover todos os arquivos `.h` para a pasta `include`, garantindo funcionalidade e integridade da code base.
+- Fase do PLAN.md: pos-entrega final; reorganizacao estrutural da code base sem novo marco funcional do coletor.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, historico e estado Git, `Makefile`, `README.md`, `scripts/run_gc_visualizer.ps1`, headers em `include/`, headers em `src/`, `tests/test.h`, fontes em `src/`, testes, exemplos e benchmarks.
+- Alteracoes realizadas: movidos os headers internos de `src/` para `include/`; movido `tests/test.h` para `include/test.h`; atualizado o `Makefile` para depender apenas de headers em `include/` e compilar com `-Iinclude`; removido `-I$source` do script do visualizador do GC; atualizado o `README.md` para apontar o helper de testes em `include/test.h`.
+- Decisoes e justificativas: `tests/test.h` tambem foi movido porque o pedido do usuario foi literal para todos os arquivos `.h`; as inclusoes por nome simples foram preservadas para reduzir impacto nos fontes; `TEST_HELPER` foi separado de `GC_HEADERS` para nao misturar helper de teste com headers do coletor; os caminhos `-Isrc` e `-Itests` foram removidos para impedir dependencia acidental de headers fora de `include/`.
+- Riscos ou erros procurados: referencias antigas a `src/*.h` e `tests/test.h`, compilacoes que dependessem da busca local de headers, quebra dos testes unitarios, exemplos, benchmarks e script do visualizador, alem de warnings por flags obrigatorias.
+- Testes executados: `rg --files -g "*.h"`, busca por referencias antigas a headers em `src/`/`tests`, `mingw32-make clean`, `mingw32-make all`, `mingw32-make test`, `.\scripts\run_gc_visualizer.ps1 -BuildOnly` e `git diff --check`.
+- Resultados: todos os `.h` agora ficam em `include/`; `all`, `test` e build do visualizador passaram sem warnings; `git diff --check` nao encontrou erro de whitespace, apenas avisos normais de conversao LF para CRLF no Windows.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: se o projeto crescer, avaliar separar conceitualmente headers publicos e internos dentro de `include/`, mantendo todos os `.h` sob a pasta conforme decidido agora.
+
+## 2026-06-30 16:08 - Visualizador do fire_test por escala
+
+- Prompt/objetivo: criar um visualizador do `fire_test` com menu para as escalas `1.000`, `10.000`, `100.000` e `10^7` objetos; em cada escala, permitir alocar a carga, limpar os objetos gerados e exibir objetos alocados, intervalos inseridos, objetos marcados/coletados, tempos em ms e operacoes da arvore.
+- Fase do PLAN.md: pos-entrega final; pedido extra de visualizacao didatica sobre o teste de fogo e as metricas do coletor.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `benchmarks/fire_test.c`, `benchmarks/scale_allocations.c`, `examples/gc_visualizer.c`, `include/gc.h`, `include/gc_stats.h`, `include/gc_internal.h`, `src/gc.c`, `Makefile`, `README.md`, scripts de visualizacao e estado Git.
+- Alteracoes realizadas: criado `examples/fire_test_visualizer.c`; criado `scripts/run_fire_test_visualizer.ps1`; adicionado o visualizador ao build de exemplos no `Makefile`; atualizado `README.md` com instrucoes de uso e comportamento da visualizacao.
+- Decisoes e justificativas: o benchmark `fire_test` foi preservado para CSV/reprodutibilidade, enquanto o novo exemplo ficou separado e interativo; a limpeza executa primeiro uma coleta com raizes registradas para tornar a marcacao visivel e depois remove raizes/referencias para coletar os objetos; os tempos sao convertidos de ticks para milissegundos usando `performance_frequency`; `gc_internal_allocation_count()` foi usado para mostrar intervalos presentes na arvore.
+- Riscos ou erros procurados: quebra do build por headers movidos para `include/`, warnings em C11 estrito, contagem incorreta de intervalos, limpar objetos ainda referenciados por raizes explicitas, reter referencias auxiliares nas estruturas do visualizador, e confundir marcacao com coleta final.
+- Testes executados: `mingw32-make clean`, `mingw32-make all`, `mingw32-make test`, `.\scripts\run_fire_test_visualizer.ps1 -BuildOnly`, `.\scripts\run_fire_test_visualizer.ps1 -Demo`, `mingw32-make sanitize`, execucao sanitizada `.\build\sanitize\example_fire_test_visualizer.exe --demo`, `drmemory.exe -- .\build\debug\fire_test_visualizer.exe --demo`, `drmemory.exe -- .\build\test_smoke.exe`, `git diff --check` e listagem dos headers com `rg --files -g "*.h"`.
+- Resultados: build completo, testes, sanitizadores e demo do visualizador passaram; a demo de `1.000` objetos mostrou `1.000` objetos alocados, `1.000` intervalos inseridos, `1.000` objetos marcados e `1.000` coletados; Dr. Memory falhou antes de iniciar tanto o visualizador quanto `test_smoke.exe` por erro de carregamento de `dbghelp.dll`, indicando problema da ferramenta/ambiente e nao uma falha especifica do novo visualizador.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: se necessario, executar manualmente as escalas maiores, especialmente `10^7`, em um terminal dedicado e com tempo/memoria disponiveis; investigar Dr. Memory separadamente para corrigir o erro de inicializacao com `dbghelp.dll`.
+
+## 2026-06-30 16:40 - Ajuste de raizes nas escalas grandes do fire_test
+
+- Prompt/objetivo: corrigir a aparente trava do visualizador em `10^7` objetos, adicionar escala de `1.000.000` objetos, limitar essa escala a 100 raizes e limitar a escala `10^7` a 1.000 raizes, mantendo a formula proporcional ate `100.000`.
+- Fase do PLAN.md: pos-entrega final; refinamento de pedido extra de visualizacao do teste de fogo.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, estado e historico Git, `examples/fire_test_visualizer.c`, `src/roots.c`, `src/gc.c`, `README.md` e `Makefile`.
+- Alteracoes realizadas: adicionado helper `root_count_for_scale()`; incluida a escala `1.000.000`; mantida a formula `count / 16 + 1` ate `100.000`; definido limite fixo de 100 raizes em `1.000.000` e 1.000 raizes em `10^7`; distribuidas as raizes pela escala; adicionadas mensagens de progresso no cadastro de raizes; documentada a politica no `README.md`; o alvo `sanitize` passou a executar a demo automatica do novo visualizador.
+- Decisoes e justificativas: a aparente trava vinha do cadastro de centenas de milhares de raizes explicitas, pois cada `gc_add_root()` percorre linearmente as raizes ja registradas para detectar duplicidade; limitar as raizes nas escalas grandes preserva a visualizacao do comportamento do GC sem deixar o custo auxiliar do visualizador dominar a execucao.
+- Riscos ou erros procurados: quebrar as escalas pequenas, introduzir divisao por zero ao distribuir raizes, registrar raizes duplicadas, perder a capacidade de marcar objetos na fase didatica, deixar o alvo `sanitize` interativo ou omitir feedback visual no cadastro de raizes.
+- Testes executados: `mingw32-make clean`, `mingw32-make all`, `mingw32-make test`, `.\scripts\run_fire_test_visualizer.ps1 -Demo`, `mingw32-make sanitize`, execucao da demo automatica do visualizador dentro de `sanitize`, `git diff --check` e busca por espacos finais nos novos arquivos do visualizador.
+- Resultados: build, testes, demo e sanitizers passaram; a demo de `1.000` objetos continua registrando 63 raizes pela formula proporcional; as escalas grandes agora usam limites fixos documentados, removendo o gargalo de `625.001` raizes em `10^7`.
+- Erros da IA ou sugestoes rejeitadas: o desenho inicial do visualizador exagerou a quantidade de raizes explicitas em `10^7`, fazendo o custo de cadastro de raizes parecer travamento; corrigido nesta entrada.
+- Pendencias e proximo passo: executar manualmente as escalas de `1.000.000` e `10^7` para observar tempo real de alocacao/coleta no ambiente local; se ainda houver lentidao, medir separadamente alocacao, cadastro de raizes, mark e sweep.
+
+## 2026-06-30 22:53 - Grafico de pausa por heap comparando coletores
+
+- Prompt/objetivo: gerar um grafico de tempo de pausa por tamanho do heap comparando mark-sweep puro contra a variante geracional, atendendo ao requisito de mostrar a relacao entre pausa e heap.
+- Fase do PLAN.md: pos-entrega final; complemento de benchmark/graficos para relatorio.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, `benchmarks/compare_collectors.c`, `scripts/generate_plots.py`, `Makefile`, `README.md`, `docs/REPORT.md`, `docs/TECHNICAL.md`, `data/collectors.csv`, graficos em `plots/` e estado Git.
+- Alteracoes realizadas: `bench_compare_collectors` passou a aceitar `--stages`, emitir `heap_bytes`, `mean_pause_ms` e `mean_elapsed_ms`; o alvo `plots` passou a gerar `data/collectors.csv` em estagios; `scripts/generate_plots.py` passou a criar `plots/collector_pause_vs_heap.svg`; o grafico de barras antigo passou a usar `mean_pause_ms` no maior heap disponivel; README e documentacao tecnica/relatorio foram atualizados para citar o novo grafico.
+- Decisoes e justificativas: manter `collector_pause_comparison.svg` como resumo por algoritmo e criar um grafico novo de linhas para a relacao pausa x heap; usar milissegundos em vez de ticks no novo grafico para facilitar leitura no relatorio; usar o pico `bytes_reserved` antes das coletas como tamanho do heap gerenciado naquele estagio.
+- Riscos ou erros procurados: quebrar o CSV antigo sem atualizar o gerador, gerar grafico com apenas um ponto por algoritmo, confundir tempo total (`elapsed`) com pausa do GC (`pause`), salvar CSV em UTF-16 pelo redirecionamento do PowerShell e deixar cache `__pycache__` no repositorio.
+- Testes executados: `mingw32-make clean`, `mingw32-make all`, regeneracao de `data/collectors.csv` com `cmd /c "build\\bench_compare_collectors.exe 50000 --csv --stages > data\\collectors.csv"`, `python scripts\\generate_plots.py`, inspecao de `data\\collectors.csv`, `mingw32-make test`, `python -m py_compile scripts\\generate_plots.py`, execucao curta `.\build\bench_compare_collectors.exe 1000 --csv --stages` e `git diff --check`.
+- Resultados: novo grafico `plots/collector_pause_vs_heap.svg` gerado com series para `mark_sweep` e `generational`; `data/collectors.csv` agora contem pontos para 1.000, 10.000 e 50.000 objetos com `heap_bytes` e `mean_pause_ms`; build, testes e geracao dos graficos passaram.
+- Erros da IA ou sugestoes rejeitadas: a primeira tentativa de gerar `collectors.csv` com redirecionamento do PowerShell salvou o arquivo em UTF-16 e quebrou o leitor UTF-8 do Python; o CSV foi regenerado via `cmd /c` e o problema foi corrigido.
+- Pendencias e proximo passo: se o relatorio exigir escalas maiores, executar `bench_compare_collectors` com limite superior maior, por exemplo `100000` ou `1000000`, e regenerar os graficos; isso pode levar mais tempo.
+
+## 2026-06-30 23:40 - Menu inicial por cenario no visualizador do GC
+
+- Prompt/objetivo: adicionar um menu inicial ao visualizador do garbage collector para escolher entre exemplo com lista, exemplo com arvore, exemplo com grafo ciclico e sair, mantendo as mesmas opcoes internas ja existentes.
+- Fase do PLAN.md: pos-entrega final; pedido extra de visualizacao didatica dos programas-cobaia obrigatorios.
+- Arquivos examinados: `SKILL.md`, `PLAN.md`, `DIARIO.md`, estado e historico Git, `examples/gc_visualizer.c`, `scripts/run_gc_visualizer.ps1` e `README.md`.
+- Alteracoes realizadas: `examples/gc_visualizer.c` passou a ter selecao inicial de cenario; foram adicionados construtores separados para lista, arvore e grafo ciclico; a opcao de recriar o exemplo agora preserva o cenario escolhido; o modo `--demo` percorre automaticamente os tres cenarios; o `README.md` documenta o novo fluxo.
+- Decisoes e justificativas: manter um unico visualizador para os tres programas-cobaia reduz duplicacao e preserva o menu operacional ja conhecido; os cenarios compartilham as mesmas acoes de alocar, alterar referencias, descartar referencias, coletar, recriar e executar sequencia automatica; o modo `--demo` foi ampliado para validar os tres formatos sem depender de entrada manual.
+- Riscos ou erros procurados: quebrar o fluxo interativo existente, perder o exemplo ciclico anterior, deixar a opcao de reset trocar de cenario sem o usuario pedir, gerar objetos sem registrar raizes, ou alterar indevidamente arquivos fora do escopo.
+- Testes executados: `mingw32-make clean`, `mingw32-make all`, `mingw32-make test`, `.\scripts\run_gc_visualizer.ps1 -Demo` e `git diff --check -- examples/gc_visualizer.c README.md DIARIO.md`.
+- Resultados: build completo e testes passaram; a demo automatica exibiu os cenarios `lista`, `arvore` e `grafo ciclico`; a validacao de whitespace nao encontrou erros, apenas avisos normais de conversao LF para CRLF no Windows.
+- Erros da IA ou sugestoes rejeitadas: nenhum identificado.
+- Pendencias e proximo passo: se desejado, testar manualmente o menu interativo com teclado para avaliar a clareza visual de cada cenario.

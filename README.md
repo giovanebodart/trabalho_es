@@ -60,7 +60,7 @@ realizada porque não há distribuição WSL instalada e deixou de ser obrigató
 após a mudança da plataforma de desenvolvimento.
 
 Os testes ficam separados por módulo em `tests/test_*.c` e usam as macros de
-`tests/test.h`. Uma asserção malsucedida retorna `EXIT_FAILURE`, permitindo que
+`include/test.h`. Uma asserção malsucedida retorna `EXIT_FAILURE`, permitindo que
 o GNU Make interrompa a suíte com código diferente de zero.
 
 O alvo `stress` executa a suíte normal e uma carga gradual de alocações até
@@ -76,7 +76,7 @@ mingw32-make benchmark SCALE_BENCHMARK_MAX=1000000
 .\build\bench_scale_allocations.exe 100000 --csv > data\scale.csv
 .\build\bench_fire_test.exe 50000 --csv > data\fire.csv
 .\build\bench_tree.exe 100000 --csv > data\tree.csv
-.\build\bench_compare_collectors.exe 50000 --csv > data\collectors.csv
+.\build\bench_compare_collectors.exe 50000 --csv --stages > data\collectors.csv
 ```
 
 O modo `--full` dos benchmarks também percorre `10^7` objetos, portanto deve
@@ -92,7 +92,8 @@ Se `python` não estiver no `PATH`, informe o executável explicitamente com
 `PYTHON=C:/caminho/para/python.exe`. O alvo cria `data/scale.csv`,
 `data/fire.csv`, `data/tree.csv`, `data/collectors.csv` e os gráficos
 `plots/pause_vs_heap.svg`, `plots/memory_vs_progress.svg`,
-`plots/tree_cost_vs_objects.svg` e `plots/collector_pause_comparison.svg`.
+`plots/tree_cost_vs_objects.svg`, `plots/collector_pause_comparison.svg` e
+`plots/collector_pause_vs_heap.svg`.
 
 O alvo de sanitização usa Clang/LLVM com AddressSanitizer e
 UndefinedBehaviorSanitizer:
@@ -125,13 +126,37 @@ projeto, além de símbolos, otimização desativada e frame pointers preservado
 
 O visualizador ASCII mostra raizes, referencias, objetos alcancaveis, lixo,
 retencoes conservadoras e metricas da pausa com
-`.\scripts\run_gc_visualizer.ps1`; dados e remocoes sao aleatorios. Use `-Demo`
-para uma sequencia automatica ou `-BuildOnly` para somente compilar em debug.
+`.\scripts\run_gc_visualizer.ps1`. O menu inicial permite escolher um exemplo
+com lista, arvore ou grafo ciclico; dentro do exemplo, as opcoes continuam
+permitindo alocar, alterar referencias, descartar referencias, coletar, recriar
+o cenario atual e executar uma sequencia automatica. Use `-Demo` para uma
+sequencia automatica nos tres cenarios ou `-BuildOnly` para somente compilar em
+debug.
 
 O terminal tambem mostra uma linha do tempo dos eventos recentes do GC:
 alocacoes, mudancas de raiz, mudancas de referencias, descartes e coletas. A
 tela separa objetos em `[R]` raiz direta, `[V]` vivo por alcance e `[L]` lixo
 esperado para a proxima coleta.
+
+## Visualizador do teste de fogo
+
+O visualizador do `fire_test` abre um menu por escala para `1.000`, `10.000`,
+`100.000`, `1.000.000` e `10^7` objetos:
+
+```powershell
+.\scripts\run_fire_test_visualizer.ps1
+```
+
+Em cada escala, a opcao `1` aloca a carga deterministica e mostra objetos
+alocados e intervalos inseridos na arvore. As escalas ate `100.000` mantem a
+proporcao de uma raiz a cada 16 objetos, enquanto `1.000.000` usa 100 raizes e
+`10^7` usa 1.000 raizes para evitar que o cadastro de raizes domine a execucao
+interativa. A opcao `2` primeiro executa uma coleta com raizes registradas para
+tornar a marcacao visivel; depois remove as raizes, esquece as referencias
+externas e executa coletas ate limpar os objetos gerados, mostrando objetos
+marcados, objetos coletados, tempos em milissegundos e operacoes da arvore de
+intervalos. Use `-Demo` para validar automaticamente a escala de `1.000`
+objetos ou `-BuildOnly` para apenas compilar em debug.
 
 O Windows Performance Analyzer foi localizado no ambiente em
 `C:\Program Files (x86)\Windows Kits\10\Windows Performance Toolkit\wpa.exe`;
@@ -208,7 +233,9 @@ com o comportamento `O(log n)`.
 
 O benchmark `bench_compare_collectors` executa aquecimento e três repetições da
 mesma carga em mark-sweep puro e no coletor geracional, emitindo média, mediana
-e dispersão das pausas e do tempo total em tabela ou CSV.
+e dispersão das pausas e do tempo total em tabela ou CSV. Com `--stages`, ele
+gera várias escalas até o limite informado, incluindo `heap_bytes` e
+`mean_pause_ms`, usadas no gráfico de pausa por tamanho do heap.
 
 O script `scripts/generate_plots.py` consome os CSVs gerados pelos benchmarks e
 produz gráficos SVG reproduzíveis usando apenas a biblioteca padrão do Python.

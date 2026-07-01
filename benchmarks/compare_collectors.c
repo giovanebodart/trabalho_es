@@ -12,6 +12,7 @@
 
 #define COMPARE_DEFAULT_OBJECTS ((size_t)50000)
 #define COMPARE_REPEAT_COUNT ((size_t)3)
+#define COMPARE_STAGE_COUNT ((size_t)5)
 #define COMPARE_CANARY UINT32_C(0xBADC0DE)
 
 typedef struct CompareNode {
@@ -24,11 +25,21 @@ typedef struct CompareNode {
 typedef struct {
     uint64_t elapsed_ticks;
     uint64_t pause_ticks;
+    uint64_t frequency;
+    size_t heap_bytes;
     size_t collected_bytes;
     size_t minor_collections;
     size_t major_collections;
     size_t promoted_objects;
 } CompareSample;
+
+static const size_t compare_stages[COMPARE_STAGE_COUNT] = {
+    1000u,
+    10000u,
+    50000u,
+    100000u,
+    1000000u
+};
 
 static int compare_u64(const void *left, const void *right)
 {
@@ -72,20 +83,34 @@ static uint64_t range_u64(const uint64_t *values, size_t count)
     return max - min;
 }
 
-static bool parse_args(int argc, char **argv, size_t *objects, bool *csv)
+static double ticks_to_ms(uint64_t ticks, uint64_t frequency)
+{
+    if (frequency == 0) {
+        return 0.0;
+    }
+    return (double)ticks * 1000.0 / (double)frequency;
+}
+
+static bool parse_args(int argc, char **argv, size_t *objects, bool *csv,
+                       bool *stages)
 {
     char *end = NULL;
     unsigned long long parsed;
     int index;
 
-    if (objects == NULL || csv == NULL) {
+    if (objects == NULL || csv == NULL || stages == NULL) {
         return false;
     }
     *objects = COMPARE_DEFAULT_OBJECTS;
     *csv = false;
+    *stages = false;
     for (index = 1; index < argc; ++index) {
         if (strcmp(argv[index], "--csv") == 0) {
             *csv = true;
+            continue;
+        }
+        if (strcmp(argv[index], "--stages") == 0) {
+            *stages = true;
             continue;
         }
         parsed = strtoull(argv[index], &end, 10);
@@ -136,6 +161,7 @@ static bool run_workload(size_t count, size_t seed, bool pure_mark_sweep,
     CompareNode **nodes = calloc(count, sizeof *nodes);
     size_t root_count = count / (size_t)32 + (size_t)1;
     CompareNode **roots = calloc(root_count, sizeof *roots);
+    GCStats peak = {0};
     GCStats stats;
     size_t index;
     bool ok = false;
@@ -159,6 +185,9 @@ static bool run_workload(size_t count, size_t seed, bool pure_mark_sweep,
         if (gc_add_root((void **)&roots[index]) != GC_SUCCESS) {
             goto done;
         }
+    }
+    if (gc_get_stats(&peak) != GC_SUCCESS) {
+        goto done;
     }
     gc_collect();
     for (index = 1; index < root_count; index += (size_t)2) {
@@ -191,6 +220,8 @@ static bool run_workload(size_t count, size_t seed, bool pure_mark_sweep,
     }
     sample->elapsed_ticks = (uint64_t)(end.QuadPart - start.QuadPart);
     sample->pause_ticks = stats.pause_ticks;
+    sample->frequency = stats.performance_frequency;
+    sample->heap_bytes = peak.bytes_reserved;
     sample->collected_bytes = stats.bytes_collected;
     sample->minor_collections = stats.minor_collection_count;
     sample->major_collections = stats.major_collection_count;
@@ -210,6 +241,7 @@ static bool collect_samples(const char *name, size_t count,
     CompareSample samples[COMPARE_REPEAT_COUNT];
     uint64_t elapsed[COMPARE_REPEAT_COUNT];
     uint64_t pauses[COMPARE_REPEAT_COUNT];
+    size_t heap_bytes = 0;
     size_t index;
 
     if (!run_workload(count / (size_t)4 + (size_t)1,
@@ -223,14 +255,22 @@ static bool collect_samples(const char *name, size_t count,
         }
         elapsed[index] = samples[index].elapsed_ticks;
         pauses[index] = samples[index].pause_ticks;
+        if (samples[index].heap_bytes > heap_bytes) {
+            heap_bytes = samples[index].heap_bytes;
+        }
     }
     if (csv) {
-        printf("%s,%zu,%zu,%llu,%llu,%llu,%llu,%llu,%llu,%zu,%zu,%zu,%zu\n",
-               name, count, COMPARE_REPEAT_COUNT,
-               (unsigned long long)mean_u64(pauses, COMPARE_REPEAT_COUNT),
+        uint64_t mean_pause = mean_u64(pauses, COMPARE_REPEAT_COUNT);
+        uint64_t mean_elapsed = mean_u64(elapsed, COMPARE_REPEAT_COUNT);
+
+        printf("%s,%zu,%zu,%zu,%llu,%.3f,%llu,%llu,%llu,%.3f,%llu,%llu,%zu,%zu,%zu,%zu\n",
+               name, count, heap_bytes, COMPARE_REPEAT_COUNT,
+               (unsigned long long)mean_pause,
+               ticks_to_ms(mean_pause, samples[0].frequency),
                (unsigned long long)median_u64(pauses, COMPARE_REPEAT_COUNT),
                (unsigned long long)range_u64(pauses, COMPARE_REPEAT_COUNT),
-               (unsigned long long)mean_u64(elapsed, COMPARE_REPEAT_COUNT),
+               (unsigned long long)mean_elapsed,
+               ticks_to_ms(mean_elapsed, samples[0].frequency),
                (unsigned long long)median_u64(elapsed, COMPARE_REPEAT_COUNT),
                (unsigned long long)range_u64(elapsed, COMPARE_REPEAT_COUNT),
                samples[COMPARE_REPEAT_COUNT - (size_t)1].collected_bytes,
@@ -250,18 +290,47 @@ static bool collect_samples(const char *name, size_t count,
     return true;
 }
 
+static bool collect_comparison(size_t objects, bool stages, bool csv)
+{
+    bool ran_limit = false;
+    size_t index;
+
+    if (!stages) {
+        return collect_samples("mark_sweep", objects, true, csv)
+               && collect_samples("generational", objects, false, csv);
+    }
+    for (index = 0; index < COMPARE_STAGE_COUNT; ++index) {
+        size_t count = compare_stages[index];
+
+        if (count > objects) {
+            break;
+        }
+        if (!collect_samples("mark_sweep", count, true, csv)
+            || !collect_samples("generational", count, false, csv)) {
+            return false;
+        }
+        ran_limit = ran_limit || count == objects;
+    }
+    if (!ran_limit) {
+        return collect_samples("mark_sweep", objects, true, csv)
+               && collect_samples("generational", objects, false, csv);
+    }
+    return true;
+}
+
 int main(int argc, char **argv)
 {
     size_t objects;
+    bool stages;
     bool csv;
 
-    if (!parse_args(argc, argv, &objects, &csv)) {
-        fputs("uso: bench_compare_collectors.exe [objetos] [--csv]\n",
+    if (!parse_args(argc, argv, &objects, &csv, &stages)) {
+        fputs("uso: bench_compare_collectors.exe [objetos] [--csv] [--stages]\n",
               stderr);
         return EXIT_FAILURE;
     }
     if (csv) {
-        puts("algorithm,objects,repetitions,mean_pause_ticks,median_pause_ticks,pause_range_ticks,mean_elapsed_ticks,median_elapsed_ticks,elapsed_range_ticks,collected_bytes,minor_collections,major_collections,promoted_objects");
+        puts("algorithm,objects,heap_bytes,repetitions,mean_pause_ticks,mean_pause_ms,median_pause_ticks,pause_range_ticks,mean_elapsed_ticks,mean_elapsed_ms,median_elapsed_ticks,elapsed_range_ticks,collected_bytes,minor_collections,major_collections,promoted_objects");
     } else {
         puts("Comparacao entre mark-sweep puro e coletor geracional");
         printf("%-12s | %8s | %3s | %12s | %12s | %12s | %12s | %12s | %12s\n",
@@ -270,8 +339,7 @@ int main(int argc, char **argv)
                "elapsed_rng");
         puts("-------------+----------+-----+--------------+--------------+--------------+--------------+--------------+--------------");
     }
-    return collect_samples("mark_sweep", objects, true, csv)
-           && collect_samples("generational", objects, false, csv)
+    return collect_comparison(objects, stages, csv)
            ? EXIT_SUCCESS
            : EXIT_FAILURE;
 }

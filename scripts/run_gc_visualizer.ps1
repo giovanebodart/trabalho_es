@@ -15,7 +15,7 @@ $gcSources = @(
 New-Item -ItemType Directory -Path $build -Force | Out-Null
 $arguments = @(
     "-std=c11", "-Wall", "-Wextra", "-Werror", "-pedantic",
-    "-g3", "-O0", "-fno-omit-frame-pointer", "-I$include", "-I$source",
+    "-g3", "-O0", "-fno-omit-frame-pointer", "-I$include",
     (Join-Path $root "examples\gc_visualizer.c")
 ) + $gcSources + @("-o", $executable, "-lpsapi")
 Write-Host "Compilando visualizador do coletor em modo debug..."

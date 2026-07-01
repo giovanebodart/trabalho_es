@@ -4,7 +4,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#if defined (__GNUC__) 
 #define GC_EXAMPLE_NOINLINE __attribute__((noinline))
+#else
+#define GC_EXAMPLE_NOINLINE
+#endif
 
 typedef struct ListNode {
     struct ListNode *next;
